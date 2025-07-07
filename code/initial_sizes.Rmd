@@ -1,0 +1,76 @@
+---
+title: "sizes"
+output: html_document
+date: "2025-07-07"
+---
+### Load libraries
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(readxl)
+library(lme4)
+setwd("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field")
+
+```
+
+### Load data
+```{r}
+sizes <- read_xlsx("data/Growth/Sizes/06272025.xlsx")
+treat_key <- read_xlsx("data/treatment_key.xlsx")
+colnames(sizes) <- c("date", "bag_num_og", "pic_num", "oyster_num", "length")
+```
+
+### Spread of initial sizes
+```{r}
+hist(sizes$length)
+```
+
+### Spread of initial sizes in each bag
+```{r}
+sizes %>%
+  group_by(bag_num) %>%
+  group_walk(~ hist(.x$length))
+```
+
+### Extract bag info
+```{r}
+sizes$top_bottom <- substring(sizes$bag_num_og, 4) 
+sizes$bag_num <- substr(sizes$bag_num_og, start = 1, stop = 2)
+sizes$bag_num <- as.factor(sizes$bag_num)
+treat_key$bag_num <- as.factor(treat_key$bag_num)
+sizes <- left_join(sizes, treat_key, by = "bag_num")
+
+```
+
+
+```{r}
+mean_sizes <- sizes %>%
+  group_by(bag_num) %>%
+  summarise(mean_length = mean(length, na.rm = TRUE),
+            std_error = sd(length, na.rm = TRUE)/sqrt(length(mean_length)),
+            .groups = 'drop')
+```
+
+
+```{r}
+ggplot(sizes, aes(x=bag_num, y=length, fill = top_bottom)) + 
+    geom_boxplot()
+```
+```{r}
+ggplot(sizes, aes(x=tide, y=length)) + 
+    geom_boxplot()
+```
+```{r}
+ggplot(sizes, aes(x=density, y=length)) + 
+    geom_boxplot()
+```
+```{r}
+ggplot(sizes, aes(x=rack, y=length)) + 
+    geom_boxplot()
+```
+```{r}
+ggplot(sizes, aes(x=piling, y=length)) + 
+    geom_boxplot()
+```
+
+
