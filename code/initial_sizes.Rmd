@@ -15,6 +15,7 @@ setwd("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/D
 
 ### Load data
 ```{r}
+setwd("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field")
 sizes <- read_xlsx("data/Growth/Sizes/06272025.xlsx")
 treat_key <- read_xlsx("data/treatment_key.xlsx")
 colnames(sizes) <- c("date", "bag_num_og", "pic_num", "oyster_num", "length")
@@ -28,7 +29,7 @@ hist(sizes$length)
 ### Spread of initial sizes in each bag
 ```{r}
 sizes %>%
-  group_by(bag_num) %>%
+  group_by(bag_num_og) %>%
   group_walk(~ hist(.x$length))
 ```
 

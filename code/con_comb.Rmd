@@ -5,7 +5,7 @@ date: "2025-07-09"
 ---
 ### Load Libraries
 ```{r}
-library(dplyr)
+library(tidyverse)
 library(readr)
 library(ggplot2)
 library(readxl)
@@ -47,9 +47,24 @@ con_current$Immersed <- ifelse(con_current$up_speed < 10, "Y", "N" )
 
 con_current %>%
   filter(Immersed == "Y") %>%
-  ggplot(aes(x=datetime, y=high_range, colour = sensor))+
+  ggplot(aes(x=datetime, y=sal_ppt, colour = sensor))+
   geom_point()+
   theme_classic()
 
+```
+
+```{r}
+
+
+con_current %>%
+  filter(Immersed == "Y") %>%
+  ggplot(aes(x=datetime, y=mean_con, colour = sensor))+
+  geom_point()+
+  theme_classic()
+```
+
+
+```{r}
+hist(con_current$sal_ppt)
 ```
 

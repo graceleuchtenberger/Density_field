@@ -1,0 +1,67 @@
+---
+title: "survival"
+output: html_document
+date: "2025-07-10"
+---
+
+### Load libraries
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(readxl)
+library(lme4)
+```
+
+
+### Load data
+```{r}
+setwd("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field")
+
+survival <- read_xlsx("data/Survival/07102025.xlsx")
+treat_key <- read_xlsx("data/treatment_key.xlsx")
+
+
+survival$top_bottom <- substring(survival$bag, 4) 
+survival$bag_num <- substr(survival$bag, start = 1, stop = 2)
+survival$bag_num <- as.factor(survival$bag_num)
+treat_key$bag_num <- as.factor(treat_key$bag_num)
+survival <- left_join(survival, treat_key, by = "bag_num")
+
+```
+
+### Cumulative deaths
+```{r}
+
+survival <- survival %>%
+  group_by(bag_num, top_bottom) %>%
+  arrange(date)%>%
+  mutate(cumulative_deaths = cumsum(dead)) %>%
+  ungroup()
+```
+
+
+```{r}
+means_cumdead <- survival %>%
+  group_by(date, density, tide, top_bottom) %>%
+  summarise(mean_cumdead = mean(cumulative_deaths, , na.rm = TRUE),
+            std_error = sd(cumulative_deaths, na.rm = TRUE)/sqrt(length(cumulative_deaths)),
+            .groups = 'drop')
+```
+
+
+```{r}
+means_cumdead %>%
+  filter(density)
+ggplot(means_cumdead, aes(x = date, y = mean_cumdead, shape = top_bottom, color = tide)) +
+   geom_point(size=3) +
+  labs(x = "Date",
+       y = "Mean cumulative dead oysters per bag") +
+  #scale_color_manual(labels = c("Daily Control", "Daily", "Weekly Control", "Weekly"), values = c("blue", "red", "green", "purple"))+
+  labs(color = "Density")+
+  geom_errorbar(aes(ymin=mean_cumdead-std_error, ymax=mean_cumdead+std_error), width=.2,
+                 position=position_dodge(0.05))+
+  theme_classic()
+```
+
+
+
