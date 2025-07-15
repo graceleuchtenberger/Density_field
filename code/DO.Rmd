@@ -1,0 +1,145 @@
+---
+title: "DO_comb"
+output: html_document
+date: "2025-07-14"
+---
+
+### Load Libraries
+```{r}
+library(tidyverse)
+library(readr)
+library(ggplot2)
+library(readxl)
+
+"https://towardsdatascience.com/how-to-automatically-import-and-combine-multiple-files-in-r-30a77c0a7732/"
+```
+
+
+### Load files
+```{r}
+files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07092025/do_xlsx_files")
+
+
+do <- data.frame()
+
+for (file in files){
+  name <- gsub(".xlsx","", file)
+  do_file <- readxl::read_excel(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07092025/do_xlsx_files/",file,sep=""))
+  do_file$sensor <- name
+  do <- rbind(do, do_file)
+}
+
+colnames(do) <- c("datetime", "DO", "temp", "DO_adj", "sensor")
+
+```
+
+```{r}
+do$do_sensor <- substr(do$sensor, start = 8, stop = 9)
+do$do_sensor <- gsub('_','',do$do_sensor)
+do_sensor_key <- read_excel("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/do_sensor_key.xlsx")
+
+do_sensor_key$do_sensor <- as.character(do_sensor_key$do_sensor)
+do <- left_join(do, do_sensor_key, by = "do_sensor")
+
+```
+
+
+
+
+```{r}
+do_current <- left_join(do, current, by = "datetime")
+
+do_current$up_Immersed <- ifelse(do_current$up_speed < 10, "Y", "N" )
+do_current$low_Immersed <- ifelse(do_current$low_speed < 10, "Y", "N" )
+
+do_current %>%
+  filter(up_Immersed == "Y") %>%
+  ggplot(aes(x=datetime, y=DO_adj, colour = sensor))+
+  geom_point()+
+  theme_classic()
+
+do_current %>%
+  filter(low_Immersed == "Y") %>%
+  ggplot(aes(x=datetime, y=DO_adj, colour = sensor))+
+  geom_point()+
+  theme_classic()
+
+```
+
+
+
+```{r}
+do_current %>%
+  filter(bag == c(93:100))%>%
+  filter(up_Immersed == "Y") %>%
+  ggplot(aes(x=datetime, y=DO_adj, colour = density))+
+  geom_point()+
+  theme_classic()
+```
+
+```{r}
+do_current %>%
+  filter(bag == c(43:46, 27:30))%>%
+  filter(low_Immersed == "Y") %>%
+  ggplot(aes(x=datetime, y=DO_adj, colour = density))+
+  geom_point()+
+  theme_classic()
+```
+```{r}
+do_mean <- do_current %>%
+  filter(up_Immersed == "Y") %>%
+  group_by(datetime, density, tide) %>%
+  summarize(mean_DO = mean(DO_adj))
+  
+```
+
+```{r}
+do_mean %>%
+  filter(tide == "L") %>%
+  ggplot(aes(x = datetime, y = mean_DO, color = density))+
+  geom_point()+
+  theme_classic()+
+  ylim(2,20)
+```
+```{r}
+do_mean %>%
+  filter(tide == "H") %>%
+  ggplot(aes(x = datetime, y = mean_DO, color = density))+
+  geom_point()+
+  theme_classic()+
+  ylim(2,20)
+```
+
+```{r}
+do_mean_wide <- do_mean %>%
+  pivot_wider(names_from = density, values_from = mean_DO)
+
+# Calculate differences
+do_diff <- do_mean_wide %>%
+  group_by(tide)%>%
+  mutate(D_diff = D - C,
+         S_diff = S - C) 
+  
+```
+
+```{r}
+do_diff %>%
+  filter(tide == "H") %>%
+  ggplot(aes(x = datetime))+
+  geom_point(aes(y=D_diff), color = "yellow")+
+  geom_point(aes(y =S_diff), color = "green")+
+  theme_classic()+
+  geom_hline(yintercept = 0)
+```
+
+```{r}
+
+do_diff %>%
+  filter(tide == "L") %>%
+  ggplot(aes(x = datetime))+
+  geom_point(aes(y=D_diff), color = "yellow")+
+  geom_point(aes(y =S_diff), color = "green")+
+  theme_classic()+
+  geom_hline(yintercept = 0)
+```
+

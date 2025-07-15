@@ -1,0 +1,119 @@
+---
+title: "robo"
+output: html_document
+date: "2025-07-14"
+---
+
+```{r}
+library(tidyverse)
+library(readr)
+library(ggplot2)
+library(readxl)
+library(lubridate)
+```
+
+
+```{r}
+files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/07102025")
+
+robo <- data.frame()
+
+for (file in files){
+  name <- gsub(".csv","", file)
+  robo_file <- read_csv(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/07102025/",file, sep = ""))
+  robo_file <- robo_file[-c(1:20), ]
+  robo_file$sensor <- name
+  robo <- rbind(robo, robo_file)
+}
+
+colnames(robo) <- c("datetime", "temp", "robo_sensor")
+
+```
+
+
+```{r}
+robo_sensor_key <- read_excel("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/robo_sensor_key.xlsx")
+robo_sensor_key$robo_sensor <- as.character(robo_sensor_key$robo_sensor)
+robo$robo_sensor <- as.character(robo$robo_sensor)
+robo$temp <- as.numeric(robo$temp)
+
+robo <- left_join(robo, robo_sensor_key, by = "robo_sensor")
+robo$bag <- as.factor(robo$bag)
+
+robo$datetime <- as.POSIXct(robo$datetime, format = "%Y-%m-%d %H:%M", tz = "America/Los_Angeles")
+
+robo$datetime <- robo$datetime - hours(7)
+
+```
+
+
+```{r}
+ggplot(robo, aes(x=datetime, y=temp, colour = robo_sensor))+
+  geom_line()+
+  theme_classic()
+
+```
+
+```{r}
+robo %>%
+  filter(bag == c(43:46, 27:30))%>%
+  filter(density == "D")%>%
+  filter(top_bottom == c("1", "2"))%>%
+  ggplot(aes(x=datetime, y=temp, colour = top_bottom, linetype = bag))+
+  geom_line()+
+  theme_classic()
+```
+```{r}
+robo %>%
+  filter(bag == c(43:46, 27:30))%>%
+  filter(density == "S")%>%
+  filter(top_bottom == c("1", "2"))%>%
+  ggplot(aes(x=datetime, y=temp, colour = bag))+
+  geom_line()+
+  theme_classic()
+```
+
+```{r}
+robo %>%
+  filter(bag == c(93:100))%>%
+  filter(density == "D")%>%
+  filter(top_bottom == c("1", "2"))%>%
+  ggplot(aes(x=datetime, y=temp, colour = top_bottom, linetype = bag))+
+  scale_color_manual(labels = c("Bottom", "Top"), values = c("steelblue", "tomato"))+
+  theme(axis.text = element_text(size = 18, color = "black"),
+        axis.title = element_text(size = 20, color = "black"))+
+  labs(color = "Bag Position",
+       x = "Date", 
+       y = "Temperature (°C)")+
+  geom_line(aes(linetype = bag))+
+  theme_classic()
+```
+```{r}
+robo %>%
+  filter(bag == c(93:100))%>%
+  filter(density == "S")%>%
+  filter(top_bottom == c("1", "2"))%>%
+  ggplot(aes(x=datetime, y=temp, colour = bag))+
+  geom_point()+
+  theme_classic()
+```
+
+```{r}
+robo %>%
+  filter(bag == c(93:100))%>%
+  filter(density == "C")%>%
+  ggplot(aes(x=datetime, y=temp, colour = bag))+
+  geom_line()+
+  theme_classic()
+```
+
+```{r}
+
+robo %>%
+  filter(bag == c(27:46))%>%
+  filter(density == "C")%>%
+  ggplot(aes(x=datetime, y=temp, colour = bag))+
+  geom_line()+
+  theme_classic()
+```
+

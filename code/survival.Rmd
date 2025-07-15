@@ -51,9 +51,9 @@ means_cumdead <- survival %>%
 
 ```{r}
 means_cumdead %>%
-  filter(density)
-ggplot(means_cumdead, aes(x = date, y = mean_cumdead, shape = top_bottom, color = tide)) +
-   geom_point(size=3) +
+  filter(density == "D") %>%
+ggplot(aes(x = date, y = mean_cumdead, shape = top_bottom, color = tide)) +
+   geom_point(size=3, position=position_dodge(0.05)) +
   labs(x = "Date",
        y = "Mean cumulative dead oysters per bag") +
   #scale_color_manual(labels = c("Daily Control", "Daily", "Weekly Control", "Weekly"), values = c("blue", "red", "green", "purple"))+
