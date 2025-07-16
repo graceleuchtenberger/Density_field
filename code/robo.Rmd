@@ -165,6 +165,7 @@ robo_filtered <- robo %>%
   filter(!robo_sensor %in% c("oyster_6", "oyster_5", "oyster_3", "oyster_1"))
 
 robo_interp <- bind_rows(robo_filtered, long_interp)
+write.csv(robo_interp, "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/07102025/interp_comb.csv")
 
 ```
 
@@ -230,3 +231,9 @@ temp_diff %>%
   theme_classic()+
   ylim(-11, 15)
 ```
+
+
+```{r}
+
+```
+
