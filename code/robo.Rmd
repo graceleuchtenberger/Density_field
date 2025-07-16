@@ -10,6 +10,7 @@ library(readr)
 library(ggplot2)
 library(readxl)
 library(lubridate)
+library(purrr)
 ```
 
 
@@ -94,7 +95,7 @@ robo %>%
   filter(density == "S")%>%
   filter(top_bottom == c("1", "2"))%>%
   ggplot(aes(x=datetime, y=temp, colour = bag))+
-  geom_point()+
+  geom_line()+
   theme_classic()
 ```
 
@@ -116,4 +117,116 @@ robo %>%
   geom_line()+
   theme_classic()
 ```
+### Interpolate temps where sensors were offset (oyster 6, 5, 3, and 1)
+```{r}
+library(dplyr)
+library(zoo)
 
+# Define your reference and comparison sensors
+ref_sensor_id <- "oyster_2"
+other_sensors <- c("oyster_6", "oyster_5", "oyster_3", "oyster_1")
+
+# Step 1: Get the reference sensor data
+sensor_ref <- robo %>%
+  filter(robo_sensor == ref_sensor_id) %>%
+  arrange(datetime) %>%
+  select(datetime, temp) 
+
+# Step 2: Interpolate each comparison sensor to reference timestamps
+interpolated_matrix <- sapply(other_sensors, function(sensor_id) {
+  sensor_target <- robo %>%
+    filter(robo_sensor == sensor_id) %>%
+    arrange(datetime)
+  
+  z <- zoo(sensor_target$temp, sensor_target$datetime)
+  na.approx(z, xout = sensor_ref$datetime)
+})
+
+
+long_interp <- imap_dfr(interpolated_matrix, function(zoo_obj, sensor_name) {
+  tibble(
+    datetime = index(zoo_obj),
+    interpolated_temp = coredata(zoo_obj),
+    oyster_id = sensor_name
+  )
+})
+
+colnames(long_interp) <- c("datetime", "temp", "robo_sensor")
+
+long_interp <- left_join(long_interp, robo_sensor_key, by = "robo_sensor")
+long_interp$bag <- as.factor(long_interp$bag)
+
+```
+
+
+### Add interpolated temps in, take uninterped ones out
+```{r}
+robo_filtered <- robo %>%
+  filter(!robo_sensor %in% c("oyster_6", "oyster_5", "oyster_3", "oyster_1"))
+
+robo_interp <- bind_rows(robo_filtered, long_interp)
+
+```
+
+
+```{r}
+robo_interp_mean <- robo_interp %>%
+  group_by(datetime, density, tide, top_bottom) %>%
+  summarize(mean_temp = mean(temp))
+```
+
+
+
+```{r}
+robo_interp_mean %>%
+  filter(tide == "H")%>%
+  filter(density == "D")%>%
+  ggplot(aes(x=datetime, y=mean_temp, colour = top_bottom))+
+  geom_line()+
+  theme_classic()
+```
+
+
+```{r}
+robo_interp_mean %>%
+  filter(tide == "L")%>%
+  filter(density == "D")%>%
+  ggplot(aes(x=datetime, y=mean_temp, colour = top_bottom))+
+  geom_line()+
+  theme_classic()
+```
+
+```{r}
+robo_mean_wide <- robo_interp_mean %>%
+  pivot_wider(names_from = c(density, top_bottom), values_from = mean_temp)
+
+# Calculate differences
+temp_diff <- robo_mean_wide %>%
+  group_by(tide)%>%
+  mutate(D_diff = D_2- D_1,
+         top_diff = D_2 - S_1,
+         C_diff = C_SC - C_DC) 
+```
+
+
+```{r}
+temp_diff %>%
+  filter(tide == "L")%>%
+  ggplot(aes(x=datetime))+
+  geom_line(aes(y=D_diff), color = "tomato")+
+  geom_line(aes(y=top_diff), color = "gold")+
+  #geom_line(aes(y = C_diff), color = "steelblue")+
+  theme_classic()+
+  ylim(-11, 15)
+```
+
+```{r}
+temp_diff %>%
+  filter(tide == "H")%>%
+  ggplot(aes(x=datetime))+
+  geom_line(aes(y=D_diff), color = "tomato")+
+  geom_line(aes(y=top_diff), color = "gold")+
+  #geom_line(aes(y = C_diff), color = "steelblue")+
+  theme_classic()+
+  ylim(-11, 15)
+```

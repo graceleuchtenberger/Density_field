@@ -142,4 +142,78 @@ do_diff %>%
   theme_classic()+
   geom_hline(yintercept = 0)
 ```
+### Means of DO diffs (density treatment vs control)
+```{r}
+mean(do_diff$D_diff)
+sd(do_diff$D_diff)
+mean(do_diff$S_diff)
+sd(do_diff$S_diff)
+
+```
+
+
+### Is there a difference between dense and sparse racks
+
+```{r}
+do_rack_mean <- do_current %>%
+  filter(up_Immersed == "Y") %>%
+  group_by(datetime, rack, density, tide) %>%
+  summarize(mean_DO = mean(DO_adj))
+```
+
+```{r}
+do_rack_mean %>%
+  filter(tide == "L") %>%
+  filter(density == "C") %>%
+  ggplot(aes(x = datetime, y = mean_DO, color = rack))+
+  geom_point()+
+  theme_classic()+
+  ylim(2,20)
+```
+
+```{r}
+do_rack_mean %>%
+  filter(tide == "H") %>%
+  filter(density == "C") %>%
+  ggplot(aes(x = datetime, y = mean_DO, color = rack))+
+  geom_point()+
+  theme_classic()+
+  ylim(2,20)
+```
+
+```{r}
+do_rack_mean_wide <- do_rack_mean %>%
+  pivot_wider(names_from = c(density, rack), values_from = mean_DO)
+
+# Calculate differences
+do_rack_diff <- do_rack_mean_wide %>%
+  group_by(tide)%>%
+  mutate(C_diff = C_S - C_D,
+         D_diff = D_S - D_D,
+         S_diff = S_S - S_D) 
+  
+```
+
+
+```{r}
+do_rack_diff %>%
+  filter(tide == "H") %>%
+  ggplot(aes(x = datetime))+
+  geom_point(aes(y=D_diff), color = "yellow")+
+  geom_point(aes(y =S_diff), color = "green")+
+  geom_point(aes(y=C_diff), color = "blue")+
+  theme_classic()+
+  geom_hline(yintercept = 0)
+```
+
+```{r}
+mean(do_rack_diff$C_diff)
+sd(do_rack_diff$C_diff)
+
+mean(do_rack_diff$D_diff)
+sd(do_rack_diff$D_diff)
+
+mean(do_rack_diff$S_diff)
+sd(do_rack_diff$S_diff)
+```
 
