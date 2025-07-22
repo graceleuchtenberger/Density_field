@@ -118,7 +118,8 @@ do_mean_wide <- do_mean %>%
 do_diff <- do_mean_wide %>%
   group_by(tide)%>%
   mutate(D_diff = D - C,
-         S_diff = S - C) 
+         S_diff = S - C,
+         DS_diff = D- S) 
   
 ```
 
@@ -142,12 +143,36 @@ do_diff %>%
   theme_classic()+
   geom_hline(yintercept = 0)
 ```
+
+```{r}
+
+do_diff %>%
+  filter(tide == "L") %>%
+  ggplot(aes(x = datetime))+
+  geom_point(aes(y=DS_diff), color = "blue")+
+  theme_classic()+
+  geom_hline(yintercept = 0)
+```
+
+
+```{r}
+
+do_diff %>%
+  filter(tide == "H") %>%
+  ggplot(aes(x = datetime))+
+  geom_point(aes(y=DS_diff), color = "blue")+
+  theme_classic()+
+  geom_hline(yintercept = 0)
+```
+
 ### Means of DO diffs (density treatment vs control)
 ```{r}
 mean(do_diff$D_diff)
 sd(do_diff$D_diff)
 mean(do_diff$S_diff)
 sd(do_diff$S_diff)
+mean(do_diff$DS_diff)
+sd(do_diff$DS_diff)
 
 ```
 
