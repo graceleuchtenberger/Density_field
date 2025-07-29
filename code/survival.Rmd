@@ -10,6 +10,8 @@ library(ggplot2)
 library(tidyverse)
 library(readxl)
 library(lme4)
+library(glmmTMB)
+library(DHARMa)
 ```
 
 
@@ -17,15 +19,14 @@ library(lme4)
 ```{r}
 setwd("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field")
 
-survival <- read_xlsx("data/Survival/07102025.xlsx")
+survival <- read_xlsx("data/Survival/07232025.xlsx")
 treat_key <- read_xlsx("data/treatment_key.xlsx")
 
-
-survival$top_bottom <- substring(survival$bag, 4) 
-survival$bag_num <- substr(survival$bag, start = 1, stop = 2)
+colnames(survival) <- c("date", "bag_num", "dead", "init_live_ImageJ")
 survival$bag_num <- as.factor(survival$bag_num)
 treat_key$bag_num <- as.factor(treat_key$bag_num)
 survival <- left_join(survival, treat_key, by = "bag_num")
+survival$top_bottom <- as.factor(survival$top_bottom)
 
 ```
 
@@ -51,17 +52,76 @@ means_cumdead <- survival %>%
 
 ```{r}
 means_cumdead %>%
-  filter(density == "D") %>%
-ggplot(aes(x = date, y = mean_cumdead, shape = top_bottom, color = tide)) +
+ggplot(aes(x = date, y = mean_cumdead, color = top_bottom, linetype = tide)) +
    geom_point(size=3, position=position_dodge(0.05)) +
+  geom_line(aes(linetype = tide))+
   labs(x = "Date",
        y = "Mean cumulative dead oysters per bag") +
   #scale_color_manual(labels = c("Daily Control", "Daily", "Weekly Control", "Weekly"), values = c("blue", "red", "green", "purple"))+
-  labs(color = "Density")+
+  labs(color = "Bag position")+
   geom_errorbar(aes(ymin=mean_cumdead-std_error, ymax=mean_cumdead+std_error), width=.2,
                  position=position_dodge(0.05))+
   theme_classic()
 ```
 
+```{r}
+survival <- survival %>%
+  group_by(bag_num, top_bottom) %>%
+  arrange(date)%>%
+  mutate(alive_num = init_live_ImageJ-cumulative_deaths) %>%
+  ungroup()
+
+survival$date <- as.POSIXct(survival$date)
+survival$days <- as.numeric(survival$date - min(survival$date))
+survival$days <- survival$days/86400
+survival$days <- survival$days + 16
 
 
+```
+
+
+### Model 1
+```{r}
+model1 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~  top_bottom+ tide + piling + rack +days +(1|bag_num),  data = survival, family = binomial()) #glmmTMB
+summary(model1)
+testDispersion(model1)
+tst_simres <- simulateResiduals(fittedModel = model1) #DHARMa
+plot(tst_simres)
+
+
+car::Anova(model1 , type = "III")
+
+```
+### Model 2
+```{r}
+model2 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~ top_bottom*tide + piling + rack +days +(1|bag_num),  data = survival, family = binomial()) #glmmTMB
+summary(model2)
+```
+### Model 3
+```{r}
+model3 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~  tide * top_bottom + piling  +days +(1|bag_num),  data = survival, family = binomial()) #glmmTMB
+summary(model3)
+```
+
+### Model 4
+```{r}
+model4 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~ tide * top_bottom +days +(1|bag_num),  data = survival, family = binomial()) #glmmTMB
+summary(model4)
+```
+
+
+
+### Model 8
+```{r}
+model8 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~  top_bottom+(1|bag_num),  data = survival, family = binomial()) #glmmTMB
+summary(model8)
+
+```
+
+
+### Model 9
+```{r}
+model9 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~  tide *top_bottom+(1|bag_num),  data = survival, family = binomial()) #glmmTMB
+summary(model9)
+
+```
