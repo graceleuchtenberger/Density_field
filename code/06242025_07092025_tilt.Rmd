@@ -14,23 +14,44 @@ library(ggplot2)
 ### Load in data
 ```{r}
 
-upper <- read_csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Tilt/07092025/2403278_Westcott_upper_(0)_Current.csv")
-colnames(upper) <- c("datetime", "up_speed", "up_head_deg", "up_vel_N", "up_vel_E")
+setwd("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Tilt/")
 
-up_temp <- read_csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Tilt/07092025/2403278_Westcott_upper_(0)_Temperature.csv")
-colnames(up_temp) <- c("datetime", "up_temp")
+upper_1 <- read_csv("07092025/2403278_Westcott_upper_(0)_Current.csv")
+colnames(upper_1) <- c("datetime", "up_speed", "up_head_deg", "up_vel_N", "up_vel_E")
 
-lower <- read_csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Tilt/07092025/2308203_Westcott_lower_(0)_Current.csv")
-colnames(lower) <- c("datetime", "low_speed", "low_head_deg", "low_vel_N", "low_vel_E")
+up_temp1 <- read_csv("07092025/2403278_Westcott_upper_(0)_Temperature.csv")
+colnames(up_temp1) <- c("datetime", "up_temp")
 
-low_temp <- read_csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Tilt/07092025/2308203_Westcott_lower_(0)_Temperature.csv")
-colnames(low_temp) <- c("datetime", "low_temp")
+upper_2 <- read_csv("07232025/2403278_Westcott_upper_(1)_Current.csv")
+colnames(upper_2) <- c("datetime", "up_speed", "up_head_deg", "up_vel_N", "up_vel_E")
 
-current <- upper %>%
-  left_join(lower, by = "datetime")%>%
-  left_join(up_temp, by = "datetime")%>%
-  left_join(low_temp, by = "datetime")
-  
+up_temp2 <- read_csv("07232025/2403278_Westcott_upper_(1)_Temperature.csv")
+colnames(up_temp2) <- c("datetime", "up_temp")
+
+
+lower_1 <- read_csv("07092025/2308203_Westcott_lower_(0)_Current.csv")
+colnames(lower_1) <- c("datetime", "low_speed", "low_head_deg", "low_vel_N", "low_vel_E")
+
+low_temp1 <- read_csv("07092025/2308203_Westcott_lower_(0)_Temperature.csv")
+colnames(low_temp1) <- c("datetime", "low_temp")
+
+lower_2 <- read_csv("07232025/2308203_Westcott_lower_(1)_Current.csv")
+colnames(lower_2) <- c("datetime", "low_speed", "low_head_deg", "low_vel_N", "low_vel_E")
+
+low_temp2 <- read_csv("07232025/2308203_Westcott_lower_(1)_Temperature.csv")
+colnames(low_temp2) <- c("datetime", "low_temp")
+
+current1 <- upper_1 %>%
+  left_join(lower_1, by = "datetime")%>%
+  left_join(up_temp1, by = "datetime")%>%
+  left_join(low_temp1, by = "datetime")
+
+current2 <- upper_2 %>%
+  left_join(lower_2, by = "datetime")%>%
+  left_join(up_temp2, by = "datetime")%>%
+  left_join(low_temp2, by = "datetime")
+
+current <- bind_rows(current1, current2)
 
 ```
 
@@ -39,7 +60,8 @@ current <- upper %>%
 ggplot(current, aes(x=datetime,))+
   geom_point(aes(y = up_speed), color = "tomato")+
   geom_point(aes(y = low_speed), color="steelblue")+
-  theme_classic()
+  theme_classic()+
+  ylim(0,10)
 
 ```
 

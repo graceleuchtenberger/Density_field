@@ -16,14 +16,14 @@ library(readxl)
 
 ### Load files
 ```{r}
-files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07092025/con_xlsx_files")
+files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07092025_07222025/con_xlsx_files")
 
 
 con <- data.frame()
 
 for (file in files){
   name <- gsub(".xlsx","", file)
-  con_file <- readxl::read_excel(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07092025/con_xlsx_files/",file,sep=""))
+  con_file <- readxl::read_excel(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07092025_07222025/con_xlsx_files/",file,sep=""))
   con_file$sensor <- name
   con <- rbind(con, con_file)
 }
@@ -35,7 +35,7 @@ colnames(con) <- c("datetime", "high_range", "temp", "spec_cond", "sal_ppt", "se
 
 ```{r}
 
-ggplot(con, aes(x=datetime, y=high_range, colour = sensor))+
+ggplot(con, aes(x=datetime, y=sal_ppt, colour = sensor))+
   geom_line()+
   theme_classic()
 
@@ -66,5 +66,6 @@ con_current %>%
 
 ```{r}
 hist(con_current$sal_ppt)
+
 ```
 
