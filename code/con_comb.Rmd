@@ -67,5 +67,16 @@ con_current %>%
 ```{r}
 hist(con_current$sal_ppt)
 
+
+clean_con_current <- con_current %>%
+  filter(datetime > as.POSIXct("2025-07-11 11:00:00")) 
+  
+
+mean(clean_con_current$sal_ppt)
+sd(clean_con_current$sal_ppt)
+
+mean(clean_con_current$spec_cond)
+sd(clean_con_current$spec_cond)
+
 ```
 

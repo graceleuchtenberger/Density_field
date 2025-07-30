@@ -17,14 +17,14 @@ library(readxl)
 
 ### Load files
 ```{r}
-files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07092025/do_xlsx_files")
+files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07092025_07222025/do_xlsx_files")
 
 
 do <- data.frame()
 
 for (file in files){
   name <- gsub(".xlsx","", file)
-  do_file <- readxl::read_excel(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07092025/do_xlsx_files/",file,sep=""))
+  do_file <- readxl::read_excel(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07092025_07222025/do_xlsx_files/",file,sep=""))
   do_file$sensor <- name
   do <- rbind(do, do_file)
 }
@@ -192,8 +192,7 @@ do_rack_mean %>%
   filter(density == "C") %>%
   ggplot(aes(x = datetime, y = mean_DO, color = rack))+
   geom_point()+
-  theme_classic()+
-  ylim(2,20)
+  theme_classic()
 ```
 
 ```{r}
