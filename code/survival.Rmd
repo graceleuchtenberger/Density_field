@@ -127,6 +127,8 @@ contrast(emm_by_tide, method = "pairwise")
 emm_inter <- emmeans(model4, ~ tide * top_bottom)
 contrast(emm_inter, method = "pairwise", by = "tide")
 
+contrast(emm_inter, method = "pairwise", by = "top_bottom")
+
 contrast(emm_inter, interaction = "pairwise")
 
 

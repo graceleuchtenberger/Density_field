@@ -1,0 +1,149 @@
+---
+title: "growth"
+output: html_document
+date: "2025-07-30"
+---
+
+### Load libraries
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(readxl)
+library(lme4)
+
+
+```
+
+
+### Load data
+```{r}
+setwd("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field")
+June <- read_xlsx("data/Growth/Sizes/06272025.xlsx")
+July <- read_xlsx("data/Growth/Sizes/07232025.xlsx")
+sizes <- bind_rows(June, July)
+treat_key <- read_xlsx("data/treatment_key.xlsx")
+colnames(sizes) <- c("date", "bag_num", "pic_num", "oyster_num", "length")
+sizes <- left_join(sizes, treat_key, by = "bag_num")
+sizes$top_bottom <- as.factor(sizes$top_bottom)
+```
+
+```{r}
+
+mean_sizes <- sizes %>%
+  group_by(date, tide, top_bottom) %>%
+  summarise(mean_length = mean(length, na.rm = TRUE),
+            std_error = sd(length, na.rm = TRUE)/sqrt(length(mean_length)),
+            .groups = 'drop')
+
+mean_piling_sizes <- sizes %>%
+  group_by(date, piling, top_bottom) %>%
+  summarise(mean_length = mean(length, na.rm = TRUE),
+            std_error = sd(length, na.rm = TRUE)/sqrt(length(mean_length)),
+            .groups = 'drop')
+
+mean_rack_sizes <- sizes %>%
+  group_by(date, rack, top_bottom) %>%
+  summarise(mean_length = mean(length, na.rm = TRUE),
+            std_error = sd(length, na.rm = TRUE)/sqrt(length(mean_length)),
+            .groups = 'drop')
+```
+
+
+```{r}
+ggplot(mean_sizes, aes(x=date, y=mean_length, color = top_bottom, linetype = tide))+
+  geom_point()+
+  geom_line()+
+  labs(x = "Date",
+       y = "Mean Length") +
+  labs(color = "Bag position")+
+  geom_errorbar(aes(ymin=mean_length-std_error, ymax=mean_length+std_error), width=.2)+
+  theme_classic()
+```
+```{r}
+ggplot(mean_piling_sizes, aes(x=date, y=mean_length, color = top_bottom, linetype = piling))+
+  geom_point()+
+  geom_line()+
+  labs(x = "Date",
+       y = "Mean Length") +
+  labs(color = "Bag position")+
+  geom_errorbar(aes(ymin=mean_length-std_error, ymax=mean_length+std_error), width=.2)+
+  theme_classic()
+```
+
+```{r}
+ggplot(mean_rack_sizes, aes(x=date, y=mean_length, color = top_bottom, linetype = rack))+
+  geom_point()+
+  geom_line()+
+  labs(x = "Date",
+       y = "Mean Length") +
+  labs(color = "Bag position")+
+  geom_errorbar(aes(ymin=mean_length-std_error, ymax=mean_length+std_error), width=.2)+
+  theme_classic()
+```
+
+
+```{r}
+mean_lengths <- sizes %>%
+  group_by(date, bag_num) %>%
+  summarise(mean_length = mean(length, na.rm = TRUE),
+            std_error = sd(length, na.rm = TRUE)/sqrt(length(mean_length)),
+            .groups = 'drop')
+
+mean_lengths <- mean_lengths %>%
+  group_by(bag_num) %>%
+  mutate(initial_length = first(mean_length)) %>%
+  ungroup()
+
+mean_lengths <- mean_lengths %>%
+  mutate(perc_change_l = 100*(mean_length-initial_length)/initial_length ) 
+
+mean_lengths <- left_join(mean_lengths, treat_key, by = "bag_num")
+
+
+```
+
+
+```{r}
+means_perc_l <- mean_lengths %>%
+  group_by(date, tide, top_bottom) %>%
+  summarise(mean_perc_l = mean(perc_change_l),
+            std_error = sd(perc_change_l)/sqrt(length(perc_change_l)),
+            .groups = 'drop')
+
+means_perc_l$top_bottom <- as.factor(means_perc_l$top_bottom)
+```
+
+```{r}
+ggplot(means_perc_l, aes(x = date, y = mean_perc_l, color = top_bottom)) +
+   geom_point() +
+  geom_line(aes(linetype=tide))+
+  labs(x = "Date",
+       y = "Percent change in length") +
+  labs(color = "Bag position", linetype = "Tide position")+
+  theme_classic()+
+  geom_errorbar(aes(ymin=mean_perc_l-std_error, ymax = mean_perc_l+std_error), width=.2,
+                 position=position_dodge(0.05))
+```
+
+```{r}
+mean_lengths$date <- as.POSIXct(mean_lengths$date)
+mean_lengths$days <- as.numeric(mean_lengths$date - min(mean_lengths$date))
+mean_lengths$days <- mean_lengths$days/86400
+mean_lengths$days <- mean_lengths$days + 16
+
+
+model1 <-glmmTMB(perc_change_l ~  tide *top_bottom+days+ (1|bag_num),data = mean_lengths, family = tweedie()) #glmmTMB
+summary(model1)
+car::Anova(model1,type = "III")
+car::qqPlot(residuals(model1))
+
+testDispersion(model1)
+tst_simres <- simulateResiduals(fittedModel = model1) #DHARMa
+plot(tst_simres)
+```
+
+```{r}
+hist(mean_lengths$perc_change_l)
+hist(sqrt(mean_lengths$perc_change_l))
+```
+
