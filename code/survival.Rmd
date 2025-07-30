@@ -107,6 +107,29 @@ summary(model3)
 ```{r}
 model4 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~ tide * top_bottom +days +(1|bag_num),  data = survival, family = binomial()) #glmmTMB
 summary(model4)
+
+testDispersion(model4)
+tst_simres <- simulateResiduals(fittedModel = model4) #DHARMa
+plot(tst_simres)
+
+
+car::Anova(model4 , type = "III")
+```
+
+### Emmeans
+```{r}
+library(emmeans)
+
+emm_by_tide <- emmeans(model4, ~ top_bottom | tide)
+contrast(emm_by_tide, method = "pairwise")
+
+
+emm_inter <- emmeans(model4, ~ tide * top_bottom)
+contrast(emm_inter, method = "pairwise", by = "tide")
+
+contrast(emm_inter, interaction = "pairwise")
+
+
 ```
 
 
