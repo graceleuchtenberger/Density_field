@@ -114,6 +114,8 @@ plot(tst_simres)
 
 
 car::Anova(model4 , type = "III")
+
+### Maybe run a kaplan meier curve?? Does that make sense for this??? Look into it
 ```
 
 ### Emmeans

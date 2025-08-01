@@ -17,19 +17,35 @@ library(readxl)
 
 ### Load files
 ```{r}
+files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07092025/do_xlsx_files")
+
+
+do1 <- data.frame()
+
+for (file in files){
+  name <- gsub(".xlsx","", file)
+  do_file <- readxl::read_excel(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07092025/do_xlsx_files/",file,sep=""))
+  do_file$sensor <- name
+  do1 <- rbind(do1, do_file)
+}
+
+colnames(do1) <- c("datetime", "DO", "temp", "DO_adj", "sensor")
+
 files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07092025_07222025/do_xlsx_files")
 
 
-do <- data.frame()
+do2 <- data.frame()
 
 for (file in files){
   name <- gsub(".xlsx","", file)
   do_file <- readxl::read_excel(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07092025_07222025/do_xlsx_files/",file,sep=""))
   do_file$sensor <- name
-  do <- rbind(do, do_file)
+  do2 <- rbind(do2, do_file)
 }
 
-colnames(do) <- c("datetime", "DO", "temp", "DO_adj", "sensor")
+colnames(do2) <- c("datetime", "DO", "temp", "DO_adj", "sensor")
+
+do <- bind_rows(do1, do2)
 
 ```
 
@@ -54,13 +70,13 @@ do_current$low_Immersed <- ifelse(do_current$low_speed < 10, "Y", "N" )
 
 do_current %>%
   filter(up_Immersed == "Y") %>%
-  ggplot(aes(x=datetime, y=DO_adj, colour = sensor))+
+  ggplot(aes(x=datetime, y=DO_adj, colour = do_sensor))+
   geom_point()+
   theme_classic()
 
 do_current %>%
   filter(low_Immersed == "Y") %>%
-  ggplot(aes(x=datetime, y=DO_adj, colour = sensor))+
+  ggplot(aes(x=datetime, y=DO_adj, colour = do_sensor))+
   geom_point()+
   theme_classic()
 
