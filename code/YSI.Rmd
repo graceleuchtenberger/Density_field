@@ -1,0 +1,47 @@
+---
+title: "YSI"
+output: html_document
+date: "2025-08-04"
+---
+
+### Load packages
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(readxl)
+library(gridExtra)
+library(readr)
+install.packages("radiant.data")
+library(radiant.data)
+```
+### Load data
+```{r}
+setwd("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data")
+YSI <- read_excel("YSI_06132025_06252025.xlsx")
+YSI$datetime <- as.POSIXct(YSI$datetime, format = "%m/%d/%Y %H:%M:%S")
+```
+
+```{r}
+ggplot(YSI, aes(x=datetime, y=`Temp ∞C`))+
+  geom_line()+
+  theme_classic()
+```
+```{r}
+ggplot(YSI, aes(x=datetime, y= `Sal psu`))+
+  geom_line()+
+  theme_classic()
+```
+
+```{r}
+ggplot(YSI, aes(x=datetime, y= `ODO mg/L`))+
+  geom_line()+
+  theme_classic()
+```
+
+```{r}
+ggplot(YSI, aes(x=datetime, y= pH))+
+  geom_line()+
+  theme_classic()
+```
+
+
