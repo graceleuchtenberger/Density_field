@@ -16,14 +16,14 @@ library(readxl)
 
 ### Load files
 ```{r}
-files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07092025_07222025/con_xlsx_files")
+files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07222025_08062025/con_xlsx_files")
 
 
 con <- data.frame()
 
 for (file in files){
   name <- gsub(".xlsx","", file)
-  con_file <- readxl::read_excel(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07092025_07222025/con_xlsx_files/",file,sep=""))
+  con_file <- readxl::read_excel(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07222025_08062025/con_xlsx_files/",file,sep=""))
   con_file$sensor <- name
   con <- rbind(con, con_file)
 }
@@ -41,11 +41,15 @@ ggplot(con, aes(x=datetime, y=sal_ppt, colour = sensor))+
 
 ```
 ```{r}
-con_current <- left_join(con, current, by = "datetime")
+#con_current <- left_join(con, current, by = "datetime")
 
-con_current$Immersed <- ifelse(con_current$up_speed < 10, "Y", "N" )
+#con_current$Immersed <- ifelse(con_current$up_speed < 10, "Y", "N" )
 
-con_current %>%
+con_wide <- pivot_wider(con, names_from = sensor, values_from = c(high_range, spec_cond, temp, sal_ppt))
+
+con_wide$Immersed <- ifelse(con_wide$sal_ppt_STF_CON_2_08062025 < 10, "N", "Y" )
+
+con_wide %>%
   filter(Immersed == "Y") %>%
   ggplot(aes(x=datetime, y=sal_ppt, colour = sensor))+
   geom_point()+
@@ -78,5 +82,19 @@ sd(clean_con_current$sal_ppt)
 mean(clean_con_current$spec_cond)
 sd(clean_con_current$spec_cond)
 
+```
+```{r}
+clean_con <- con %>% 
+  filter(!(sensor == "STF_CON_2_08062025"))
+
+
+mean(clean_con$sal_ppt)
+mean(clean_con$spec_cond)
+```
+
+
+```{r}
+con2 <- con %>% 
+  filter(sensor == "STF_CON_2_08062025")
 ```
 

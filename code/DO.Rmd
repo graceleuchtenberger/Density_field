@@ -45,7 +45,23 @@ for (file in files){
 
 colnames(do2) <- c("datetime", "DO", "temp", "DO_adj", "sensor")
 
-do <- bind_rows(do1, do2)
+
+
+files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07222025_08062025/do_xlsx_files")
+
+
+do3 <- data.frame()
+
+for (file in files){
+  name <- gsub(".xlsx","", file)
+  do_file <- readxl::read_excel(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07222025_08062025/do_xlsx_files/",file,sep=""))
+  do_file$sensor <- name
+  do3 <- rbind(do3, do_file)
+}
+
+colnames(do3) <- c("datetime", "DO", "temp", "DO_adj", "sensor")
+
+do <- bind_rows(do1, do2, do3)
 
 ```
 
@@ -64,11 +80,11 @@ do <- left_join(do, do_sensor_key, by = "do_sensor")
 
 ```{r}
 do_current <- left_join(do, current, by = "datetime")
+#do_current_sal <- left_join(do_current,con2, by = "datetime" )
+do_current_sal$up_Immersed <- ifelse(do_current_sal$up_speed < 10 | do_current_sal$sal_ppt > 10, "Y", "N" )
+do_current_sal$low_Immersed <- ifelse(do_current_sal$low_speed < 10 | do_current_sal$sal_ppt > 10, "Y", "N" )
 
-do_current$up_Immersed <- ifelse(do_current$up_speed < 10, "Y", "N" )
-do_current$low_Immersed <- ifelse(do_current$low_speed < 10, "Y", "N" )
-
-do_current %>%
+do_current_sal %>%
   filter(up_Immersed == "Y") %>%
   ggplot(aes(x=datetime, y=DO_adj, colour = do_sensor))+
   geom_point()+
@@ -85,7 +101,7 @@ do_current %>%
 
 
 ```{r}
-do_current %>%
+do_current_sal %>%
   filter(bag == c(93:100))%>%
   filter(up_Immersed == "Y") %>%
   ggplot(aes(x=datetime, y=DO_adj, colour = density))+
@@ -102,7 +118,7 @@ do_current %>%
   theme_classic()
 ```
 ```{r}
-do_mean <- do_current %>%
+do_mean <- do_current_sal %>%
   filter(up_Immersed == "Y") %>%
   group_by(datetime, density, tide) %>%
   summarize(mean_DO = mean(DO_adj))
@@ -115,7 +131,7 @@ do_mean %>%
   ggplot(aes(x = datetime, y = mean_DO, color = density))+
   geom_point()+
   theme_classic()+
-  ylim(2,20)
+  ylim(0,20)
 ```
 ```{r}
 do_mean %>%
