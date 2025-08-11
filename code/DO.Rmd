@@ -80,9 +80,8 @@ do <- left_join(do, do_sensor_key, by = "do_sensor")
 
 ```{r}
 do_current <- left_join(do, current, by = "datetime")
-#do_current_sal <- left_join(do_current,con2, by = "datetime" )
-do_current_sal$up_Immersed <- ifelse(do_current_sal$up_speed < 10 | do_current_sal$sal_ppt > 10, "Y", "N" )
-do_current_sal$low_Immersed <- ifelse(do_current_sal$low_speed < 10 | do_current_sal$sal_ppt > 10, "Y", "N" )
+do_current$up_Immersed <- ifelse(do_current$up_speed < 10,  "Y", "N" )
+do_current$low_Immersed <- ifelse(do_current$low_speed < 10,  "Y", "N" )
 
 do_current_sal %>%
   filter(up_Immersed == "Y") %>%
@@ -118,7 +117,7 @@ do_current %>%
   theme_classic()
 ```
 ```{r}
-do_mean <- do_current_sal %>%
+do_mean <- do_current %>%
   filter(up_Immersed == "Y") %>%
   group_by(datetime, density, tide) %>%
   summarize(mean_DO = mean(DO_adj))
