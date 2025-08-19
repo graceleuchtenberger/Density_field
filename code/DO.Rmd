@@ -61,7 +61,20 @@ for (file in files){
 
 colnames(do3) <- c("datetime", "DO", "temp", "DO_adj", "sensor")
 
-do <- bind_rows(do1, do2, do3)
+files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/08062025_08192025/do_xlsx_files")
+
+do4 <- data.frame()
+
+for (file in files){
+  name <- gsub(".xlsx","", file)
+  do_file <- readxl::read_excel(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/08062025_08192025/do_xlsx_files/",file,sep=""))
+  do_file$sensor <- name
+  do4 <- rbind(do4, do_file)
+}
+
+colnames(do4) <- c("datetime", "DO", "temp", "DO_adj", "sensor")
+
+do <- bind_rows(do1, do2, do3, do4)
 
 ```
 
@@ -83,7 +96,7 @@ do_current <- left_join(do, current, by = "datetime")
 do_current$up_Immersed <- ifelse(do_current$up_speed < 10,  "Y", "N" )
 do_current$low_Immersed <- ifelse(do_current$low_speed < 10,  "Y", "N" )
 
-do_current_sal %>%
+do_current %>%
   filter(up_Immersed == "Y") %>%
   ggplot(aes(x=datetime, y=DO_adj, colour = do_sensor))+
   geom_point()+
@@ -198,12 +211,25 @@ do_diff %>%
 
 ### Means of DO diffs (density treatment vs control)
 ```{r}
-mean(do_diff$D_diff)
-sd(do_diff$D_diff)
-mean(do_diff$S_diff)
-sd(do_diff$S_diff)
-mean(do_diff$DS_diff)
-sd(do_diff$DS_diff)
+do_diff_H <- do_diff %>%
+  filter(tide == "H")
+
+do_diff_L <- do_diff %>%
+  filter(tide == "L")
+
+mean(do_diff_H$D_diff)
+sd(do_diff_H$D_diff)
+mean(do_diff_H$S_diff)
+sd(do_diff_H$S_diff)
+mean(do_diff_H$DS_diff)
+sd(do_diff_H$DS_diff)
+
+mean(do_diff_L$D_diff)
+sd(do_diff_L$D_diff)
+mean(do_diff_L$S_diff)
+sd(do_diff_L$S_diff)
+mean(do_diff_L$DS_diff)
+sd(do_diff_L$DS_diff)
 
 ```
 
