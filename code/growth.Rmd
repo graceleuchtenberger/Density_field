@@ -107,7 +107,7 @@ ggplot(mean_rack_sizes, aes(x=date, y=mean_length, color = top_bottom, linetype 
   theme_classic()
 ```
 
-
+### Mean lengths calc
 ```{r}
 mean_lengths <- sizes %>%
   group_by(date, bag_num) %>%
@@ -128,7 +128,7 @@ mean_lengths <- left_join(mean_lengths, treat_key, by = "bag_num")
 
 ```
 
-
+### Mean percent lengths calc
 ```{r}
 means_perc_l <- mean_lengths %>%
   group_by(date, tide, top_bottom) %>%
@@ -139,6 +139,7 @@ means_perc_l <- mean_lengths %>%
 means_perc_l$top_bottom <- as.factor(means_perc_l$top_bottom)
 ```
 
+### Mean percent length graph
 ```{r}
 ggplot(means_perc_l, aes(x = date, y = mean_perc_l, color = top_bottom)) +
    geom_point() +
@@ -150,7 +151,7 @@ ggplot(means_perc_l, aes(x = date, y = mean_perc_l, color = top_bottom)) +
   geom_errorbar(aes(ymin=mean_perc_l-std_error, ymax = mean_perc_l+std_error), width=.2,
                  position=position_dodge(0.05))
 ```
-
+### Starting model
 ```{r}
 mean_lengths$date <- as.POSIXct(mean_lengths$date)
 mean_lengths$days <- as.numeric(mean_lengths$date - min(mean_lengths$date))
@@ -183,6 +184,8 @@ testDispersion(model2)
 tst_simres <- simulateResiduals(fittedModel = model2) #DHARMa
 plot(tst_simres)
 ```
+
+### Winning model (lowest AIC)
 ```{r}
 
 model3 <-glmmTMB(perc_change_l ~  tide +top_bottom+days+ (1|bag_num),data = mean_lengths, family = tweedie()) #glmmTMB
@@ -194,6 +197,8 @@ testDispersion(model3)
 tst_simres <- simulateResiduals(fittedModel = model3) #DHARMa
 plot(tst_simres)
 ```
+
+### Second best model
 ```{r}
 
 model4 <-glmmTMB(perc_change_l ~  tide +top_bottom*days+ (1|bag_num),data = mean_lengths, family = tweedie()) #glmmTMB
