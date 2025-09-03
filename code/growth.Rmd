@@ -15,7 +15,30 @@ library(glmmTMB)
 
 
 ```
+### Load and clean august data
+```{r}
+files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Growth/Sizes/08212025")
 
+Aug <- data.frame()
+
+for (file in files){
+  name <- gsub(".csv","", file)
+  size_file <- read_csv(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Growth/Sizes/08212025/",file, sep = ""))
+  size_file$bag_num <- substr(name, start =1, stop = 4)
+  size_file$pic_num <- substr(name, start =6, stop = 6)
+  Aug <- rbind(Aug, size_file)
+}
+
+Aug$date <- as.Date("2025-08-21")
+Aug$pic_num <- as.numeric(Aug$pic_num)
+
+Aug <- Aug[,7:10]
+
+Aug <- within(Aug, {oyster_num <- ave(bag_num, list(bag_num), FUN=seq_along)})
+Aug$oyster_num <- as.numeric(Aug$oyster_num)
+colnames(Aug) <- c("length", "bag_num", "pic_num", "date", "oyster_num")
+
+```
 
 ### Load data
 ```{r}
@@ -25,6 +48,7 @@ July <- read_xlsx("data/Growth/Sizes/07232025.xlsx")
 sizes <- bind_rows(June, July)
 treat_key <- read_xlsx("data/treatment_key.xlsx")
 colnames(sizes) <- c("date", "bag_num", "pic_num", "oyster_num", "length")
+sizes <- bind_rows(sizes, Aug)
 sizes <- left_join(sizes, treat_key, by = "bag_num")
 sizes$top_bottom <- as.factor(sizes$top_bottom)
 ```
@@ -148,4 +172,36 @@ plot(tst_simres)
 hist(mean_lengths$perc_change_l)
 hist(sqrt(mean_lengths$perc_change_l))
 ```
+```{r}
 
+model2 <-glmmTMB(perc_change_l ~  tide *top_bottom*days+ (1|bag_num),data = mean_lengths, family = tweedie()) #glmmTMB
+summary(model2)
+car::Anova(model2,type = "III")
+car::qqPlot(residuals(model2))
+
+testDispersion(model2)
+tst_simres <- simulateResiduals(fittedModel = model2) #DHARMa
+plot(tst_simres)
+```
+```{r}
+
+model3 <-glmmTMB(perc_change_l ~  tide +top_bottom+days+ (1|bag_num),data = mean_lengths, family = tweedie()) #glmmTMB
+summary(model3)
+car::Anova(model3,type = "III")
+car::qqPlot(residuals(model3))
+
+testDispersion(model3)
+tst_simres <- simulateResiduals(fittedModel = model3) #DHARMa
+plot(tst_simres)
+```
+```{r}
+
+model4 <-glmmTMB(perc_change_l ~  tide +top_bottom*days+ (1|bag_num),data = mean_lengths, family = tweedie()) #glmmTMB
+summary(model4)
+car::Anova(model4,type = "III")
+car::qqPlot(residuals(model4))
+
+testDispersion(model4)
+tst_simres <- simulateResiduals(fittedModel = model4) #DHARMa
+plot(tst_simres)
+```
