@@ -76,6 +76,22 @@ colnames(do4) <- c("datetime", "DO", "temp", "DO_adj", "sensor")
 
 do <- bind_rows(do1, do2, do3, do4)
 
+
+files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/08192025_09152025/do_xlsx_files")
+
+do5 <- data.frame()
+
+for (file in files){
+  name <- gsub(".xlsx","", file)
+  do_file <- readxl::read_excel(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/08192025_09152025/do_xlsx_files/",file,sep=""))
+  do_file$sensor <- name
+  do5 <- rbind(do5, do_file)
+}
+
+colnames(do5) <- c("datetime", "DO", "temp", "DO_adj", "sensor")
+
+do <- bind_rows(do1, do2, do3, do4, do5)
+
 ```
 
 ```{r}
@@ -85,6 +101,8 @@ do_sensor_key <- read_excel("/Users/graceleuchtenberger/Library/Mobile Documents
 
 do_sensor_key$do_sensor <- as.character(do_sensor_key$do_sensor)
 do <- left_join(do, do_sensor_key, by = "do_sensor")
+
+do <- do[do$datetime < as.POSIXct("2025-08-29 10:25:00"), ]
 
 ```
 
@@ -113,7 +131,7 @@ do_current %>%
 
 
 ```{r}
-do_current_sal %>%
+do_current %>%
   filter(bag == c(93:100))%>%
   filter(up_Immersed == "Y") %>%
   ggplot(aes(x=datetime, y=DO_adj, colour = density))+

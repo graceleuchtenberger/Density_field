@@ -30,12 +30,16 @@ for (file in files){
 
 colnames(con) <- c("datetime", "high_range", "temp", "spec_cond", "sal_ppt", "sensor")
 
+con0829<- readxl::read_excel("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/08292025_conreadings/STF_CON_15_08292025.xlsx")
+colnames(con0829) <- c("datetime", "high_range", "temp", "spec_cond", "sal_ppt")
+con0829$datetime <- as.POSIXct(con0829$datetime)
+
 ```
 
 
 ```{r}
 
-ggplot(clean_con, aes(x=datetime, y=sal_ppt, colour = sensor))+
+ggplot(con0829, aes(x=datetime, y=sal_ppt))+
   geom_line()+
   theme_classic()
 
@@ -99,4 +103,13 @@ mean(clean_con$spec_cond)
 con2 <- con %>% 
   filter(sensor == "STF_CON_2_08062025")
 ```
+
+```{r}
+con0829 <- con0829[1:2862,]
+
+mean(con0829$sal_ppt)
+mean(con0829$spec_cond)
+sd(con0829$sal_ppt)
+```
+
 
