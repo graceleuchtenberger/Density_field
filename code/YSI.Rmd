@@ -16,31 +16,43 @@ library(radiant.data)
 ```
 ### Load data
 ```{r}
-setwd("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data")
-YSI <- read_excel("YSI_06132025_06252025.xlsx")
-YSI$datetime <- as.POSIXct(YSI$datetime, format = "%m/%d/%Y %H:%M:%S")
+setwd("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/YSI")
+YSI1 <- read_excel("YSI_06132025_06252025.xlsx")
+YSI2 <- read_excel("07312025_08112025_YSI.xlsx")
+YSI3 <- read_excel("08282025_09162025_YSI.xlsx")
+names(YSI1) <- toupper(names(YSI1))
+names(YSI2) <- toupper(names(YSI2))
+names(YSI3) <- toupper(names(YSI3))
+YSI1$datetime <- as.POSIXct(YSI1$datetime)
+YSI2$datetime <- as.POSIXct(YSI2$datetime)
+YSI3$datetime <- as.POSIXct(YSI3$datetime)
+
+YSI <- bind_rows(YSI3, YSI2, YSI1)
+
 ```
 
 ```{r}
-ggplot(YSI, aes(x=datetime, y=`Temp ∞C`))+
-  geom_line()+
+ggplot(YSI, aes(x=DATETIME, y=`TEMP ∞C`))+
+  geom_point()+
   theme_classic()
+
+
 ```
 ```{r}
-ggplot(YSI, aes(x=datetime, y= `Sal psu`))+
-  geom_line()+
+ggplot(YSI, aes(x=DATETIME, y= `SAL PSU`))+
+  geom_point()+
   theme_classic()
 ```
 
 ```{r}
-ggplot(YSI, aes(x=datetime, y= `ODO mg/L`))+
-  geom_line()+
+ggplot(YSI, aes(x=DATETIME, y= `ODO MG/L`))+
+  geom_point()+
   theme_classic()
 ```
 
 ```{r}
-ggplot(YSI, aes(x=datetime, y= pH))+
-  geom_line()+
+ggplot(YSI, aes(x=DATETIME, y= PH))+
+  geom_point()+
   theme_classic()
 ```
 
