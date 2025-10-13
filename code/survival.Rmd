@@ -19,7 +19,7 @@ library(DHARMa)
 ```{r}
 setwd("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field")
 
-survival <- read_xlsx("data/Survival/09152025.xlsx")
+survival <- read_xlsx("data/Survival/10102025.xlsx")
 treat_key <- read_xlsx("data/treatment_key.xlsx")
 
 colnames(survival) <- c("date", "bag_num", "dead", "init_live_ImageJ")
