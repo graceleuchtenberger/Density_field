@@ -17,13 +17,13 @@ library(purrr)
 ```{r}
 
 
-files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/09152025")
+files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/10102025")
 
 robo<- data.frame()
 
 for (file in files){
   name <- gsub(".csv","", file)
-  robo_file <- read_csv(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/09152025/",file, sep = ""))
+  robo_file <- read_csv(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/10102025/",file, sep = ""))
   robo_file <- robo_file[-c(1:20), ]
   robo_file$sensor <- name
   robo <- rbind(robo, robo_file)
@@ -169,6 +169,8 @@ robo_filtered <- robo %>%
 robo_interp <- bind_rows(robo_filtered, long_interp)
 write.csv(robo_interp, "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/09152025/interp_comb.csv")
 
+write.csv(robo, "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/10102025/robo_comb.csv")
+
 ```
 
 ### combine interp files
@@ -176,8 +178,9 @@ write.csv(robo_interp, "/Users/graceleuchtenberger/Library/Mobile Documents/com~
 interp1 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/07102025/interp_comb.csv")
 interp2 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/08062025/interp_comb.csv")
 interp3 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/09152025/interp_comb.csv")
+robo <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/10102025/robo_comb.csv")
 
-interp <- bind_rows(interp1, interp2, interp3)
+interp <- bind_rows(interp1, interp2, interp3, robo)
 
 interp$datetime <- as.POSIXct(interp$datetime, format = "%Y-%m-%d %H:%M:%S")
 
@@ -230,7 +233,6 @@ temp_diff %>%
   filter(tide == "L")%>%
   ggplot(aes(x=datetime))+
   geom_line(aes(y=D_diff), color = "tomato")+
-  geom_line(aes(y=top_diff), color = "gold")+
   #geom_line(aes(y = C_diff), color = "steelblue")+
   theme_classic()
 ```
@@ -240,11 +242,24 @@ temp_diff %>%
   filter(tide == "H")%>%
   ggplot(aes(x=datetime))+
   geom_line(aes(y=D_diff), color = "tomato")+
+  #geom_line(aes(y = C_diff), color = "steelblue")+
+  theme_classic()
+```
+
+```{r}
+temp_diff %>%
+  filter(tide == "L")%>%
+  ggplot(aes(x=datetime))+
   geom_line(aes(y=top_diff), color = "gold")+
   #geom_line(aes(y = C_diff), color = "steelblue")+
   theme_classic()
 ```
 
-
-
-
+```{r}
+temp_diff %>%
+  filter(tide == "H")%>%
+  ggplot(aes(x=datetime))+
+  geom_line(aes(y=top_diff), color = "gold")+
+  #geom_line(aes(y = C_diff), color = "steelblue")+
+  theme_classic()
+```
