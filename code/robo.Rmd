@@ -17,13 +17,13 @@ library(purrr)
 ```{r}
 
 
-files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/07102025")
+files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/09152025")
 
 robo<- data.frame()
 
 for (file in files){
   name <- gsub(".csv","", file)
-  robo_file <- read_csv(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/07102025/",file, sep = ""))
+  robo_file <- read_csv(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/09152025/",file, sep = ""))
   robo_file <- robo_file[-c(1:20), ]
   robo_file$sensor <- name
   robo <- rbind(robo, robo_file)
@@ -35,7 +35,7 @@ colnames(robo) <- c("datetime", "temp", "robo_sensor")
 
 
 ```{r}
-robo_sensor_key <- read_excel("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/robo_sensor_key.xlsx")
+robo_sensor_key <- read_excel("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/robo_sensor_key_post08072025.xlsx")
 robo_sensor_key$robo_sensor <- as.character(robo_sensor_key$robo_sensor)
 robo$robo_sensor <- as.character(robo$robo_sensor)
 robo$temp <- as.numeric(robo$temp)
@@ -124,7 +124,7 @@ library(zoo)
 
 # Define your reference and comparison sensors
 ref_sensor_id <- "oyster_2"
-other_sensors <- c("oyster_1", "oyster_3", "oyster_5", "oyster_6")
+other_sensors <- c("oyster_6", "oyster_7", "oyster_8")
 
 # Step 1: Get the reference sensor data
 sensor_ref <- robo %>%
@@ -162,10 +162,10 @@ long_interp$bag <- as.factor(long_interp$bag)
 ### Add interpolated temps in, take uninterped ones out
 ```{r}
 robo_filtered <- robo %>%
-  filter(!robo_sensor %in% c("oyster_1", "oyster_3", "oyster_5", "oyster_6"))
+  filter(!robo_sensor %in% c("oyster_6", "oyster_7", "oyster_8"))
 
 robo_interp <- bind_rows(robo_filtered, long_interp)
-write.csv(robo_interp, "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/07102025/interp_comb.csv")
+write.csv(robo_interp, "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/09152025/interp_comb.csv")
 
 write.csv(robo, "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/10102025/robo_comb.csv")
 
@@ -197,7 +197,7 @@ robo_interp_mean <- interp %>%
 ```{r}
 robo_interp_mean %>%
   filter(tide == "H")%>%
-  filter(top_bottom == c("1", "2", "0"))%>%
+  filter(top_bottom %in% c("1", "0"))%>%
   ggplot(aes(x=datetime, y=mean_temp, colour = top_bottom))+
   geom_line()+
   theme_classic()
@@ -259,5 +259,58 @@ temp_diff %>%
   ggplot(aes(x=datetime))+
   geom_line(aes(y=top_diff), color = "gold")+
   #geom_line(aes(y = C_diff), color = "steelblue")+
+  theme_classic()
+```
+
+
+```{r}
+robo_interp_mean$day <- as.Date(robo_interp_mean$datetime- hours(7))
+
+robo_maxmin <- robo_interp_mean %>%
+  group_by(density, tide, top_bottom, day)%>%
+  summarise(daymin = min(mean_temp),
+         daymax = max(mean_temp),
+         .groups = 'drop') 
+  
+  
+```
+
+
+
+```{r}
+robo_maxmin %>%
+  filter(tide == "H")%>%
+  filter(top_bottom %in% c("1", "2", "0"))%>%
+  ggplot(aes(x=day))+
+  geom_line(aes(y=daymax, color = top_bottom))+
+  theme_classic()
+```
+
+```{r}
+robo_maxmin %>%
+  filter(tide == "H")%>%
+  filter(top_bottom %in% c("1", "2", "0"))%>%
+  ggplot(aes(x=day))+
+  geom_line(aes(y=daymin, color = top_bottom))+
+  theme_classic()
+```
+
+
+```{r}
+robo_maxmin %>%
+  filter(tide == "L")%>%
+  filter(top_bottom %in% c("1", "2", "0"))%>%
+  ggplot(aes(x=day))+
+  geom_line(aes(y=daymax, color = top_bottom))+
+  theme_classic()
+```
+
+
+```{r}
+robo_maxmin %>%
+  filter(tide == "L")%>%
+  filter(top_bottom %in% c("1", "2", "0"))%>%
+  ggplot(aes(x=day))+
+  geom_line(aes(y=daymin, color = top_bottom))+
   theme_classic()
 ```
