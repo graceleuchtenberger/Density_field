@@ -74,8 +74,6 @@ for (file in files){
 
 colnames(do4) <- c("datetime", "DO", "temp", "DO_adj", "sensor")
 
-do <- bind_rows(do1, do2, do3, do4)
-
 
 files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/08192025_09152025/do_xlsx_files")
 
@@ -314,5 +312,50 @@ sd(do_rack_diff$D_diff)
 
 mean(do_rack_diff$S_diff)
 sd(do_rack_diff$S_diff)
+```
+
+```{r}
+do_mean$day <- as.Date(do_mean$datetime)
+
+do_maxmin <- do_mean %>%
+  group_by(density, tide, day)%>%
+  summarise(daymin = min(mean_DO),
+         daymax = max(mean_DO),
+         .groups = 'drop') 
+  
+```
+
+
+```{r}
+do_maxmin %>%
+  filter(tide == "L")%>%
+  filter(density %in% c("C", "D", "S"))%>%
+  ggplot(aes(x=day))+
+  geom_line(aes(y=daymin, color = density))+
+  theme_classic()
+```
+
+```{r}
+do_diff_long <- do_diff %>%
+  subset(select = -c(C, D, S))%>%
+  pivot_longer(cols = ends_with("diff"), names_to = "treatment", values_to = "DO_diff")
+
+
+do_diff_maxmin <- do_diff_long %>%
+  group_by(tide, treatment, day)%>%
+  summarise(daymin = min(DO_diff),
+         daymax = max(DO_diff),
+         .groups = 'drop') 
+  
+```
+
+
+```{r}
+do_diff_maxmin %>%
+  filter(tide == "L")%>%
+  ggplot(aes(x=day))+
+  geom_line(aes(y=daymin, color = treatment))+
+  theme_classic()+
+  ylim(-4, 0)
 ```
 
