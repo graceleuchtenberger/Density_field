@@ -17,19 +17,21 @@ library(purrr)
 ```{r}
 
 
-files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/09152025")
+files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/12022025")
 
 robo<- data.frame()
 
 for (file in files){
   name <- gsub(".csv","", file)
-  robo_file <- read_csv(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/09152025/",file, sep = ""))
+  robo_file <- read_csv(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/12022025/",file, sep = ""))
   robo_file <- robo_file[-c(1:20), ]
   robo_file$sensor <- name
   robo <- rbind(robo, robo_file)
 }
 
 colnames(robo) <- c("datetime", "temp", "robo_sensor")
+
+write.csv(robo, "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/12022025/robo_comb.csv")
 
 ```
 
@@ -45,13 +47,13 @@ robo$bag <- as.factor(robo$bag)
 
 robo$datetime <- as.POSIXct(robo$datetime, format = "%Y-%m-%d %H:%M", tz = "America/Los_Angeles")
 
-robo$datetime <- robo$datetime - hours(7)
+robo$datetime <- robo$datetime - hours(8)
 
 ```
 
 
 ```{r}
-robo <- read_csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/10102025/robo_comb.csv")
+
 ggplot(robo, aes(x=datetime, y=temp, colour = robo_sensor))+
   geom_line()+
   theme_classic()
@@ -70,7 +72,7 @@ robo %>%
 robo %>%
   filter(bag == c(43:46, 27:30))%>%
   filter(density == "S")%>%
-  filter(top_bottom == c("1", "2"))%>%
+  #filter(top_bottom == c("1", "2"))%>%
   ggplot(aes(x=datetime, y=temp, colour = bag))+
   geom_line()+
   theme_classic()
@@ -93,7 +95,7 @@ robo %>%
 robo %>%
   filter(bag == c(93:100))%>%
   filter(density == "S")%>%
-  filter(top_bottom == c("1", "2"))%>%
+  #filter(top_bottom == c("1", "2"))%>%
   ggplot(aes(x=datetime, y=temp, colour = bag))+
   geom_line()+
   theme_classic()
@@ -176,9 +178,12 @@ write.csv(robo, "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~C
 interp1 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/07102025/interp_comb.csv")
 interp2 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/08062025/interp_comb.csv")
 interp3 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/09152025/interp_comb.csv")
-robo <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/10102025/robo_comb.csv")
+robo1 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/10102025/robo_comb.csv")
+robo2 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/11062025/robo_comb.csv")
+robo
 
-interp <- bind_rows(interp1, interp2, interp3, robo)
+
+interp <- bind_rows(interp1, interp2, interp3, robo1, robo2)
 
 interp$datetime <- as.POSIXct(interp$datetime, format = "%Y-%m-%d %H:%M:%S")
 
@@ -221,7 +226,7 @@ robo_mean_wide <- robo_interp_mean %>%
 temp_diff <- robo_mean_wide %>%
   group_by(tide)%>%
   mutate(D_diff = D_2- D_1,
-         top_diff = D_2 - S_1,
+         top_diff = D_2 - S_0,
          C_diff = C_SC - C_DC) 
 ```
 
