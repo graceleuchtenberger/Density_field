@@ -19,7 +19,7 @@ library(DHARMa)
 ```{r}
 setwd("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field")
 
-survival <- read_xlsx("data/Survival/11062025.xlsx")
+survival <- read_xlsx("data/Survival/12022025.xlsx")
 treat_key <- read_xlsx("data/treatment_key.xlsx")
 
 colnames(survival) <- c("date", "bag_num", "dead", "init_live_ImageJ")
@@ -130,6 +130,7 @@ emm_inter <- emmeans(model4, ~ tide * top_bottom)
 contrast(emm_inter, method = "pairwise", by = "tide")
 
 contrast(emm_inter, method = "pairwise", by = "top_bottom")
+
 
 contrast(emm_inter, interaction = "pairwise")
 

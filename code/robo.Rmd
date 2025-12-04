@@ -180,12 +180,12 @@ interp2 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~app
 interp3 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/09152025/interp_comb.csv")
 robo1 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/10102025/robo_comb.csv")
 robo2 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/11062025/robo_comb.csv")
-robo
+robo3 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/12022025/robo_comb.csv")
 
 
-interp <- bind_rows(interp1, interp2, interp3, robo1, robo2)
+interp <- bind_rows(interp1, interp2, interp3, robo1, robo2, robo3)
 
-interp$datetime <- as.POSIXct(interp$datetime, format = "%Y-%m-%d %H:%M:%S")
+interp$datetime <- as.POSIXct(interp$datetime, format = "%Y-%m-%d %H:%M:%S",  tz = "America/Los_Angeles")
 
 ```
 
