@@ -52,18 +52,59 @@ means_cumdead <- survival %>%
 
 ```{r}
 means_cumdead %>%
-ggplot(aes(x = date, y = mean_cumdead, color = top_bottom, linetype = tide)) +
+  filter(tide == "L")%>%
+  ggplot(aes(x = date, y = mean_cumdead, color = top_bottom)) +
    geom_point(size=3, position=position_dodge(0.05)) +
-  geom_line(aes(linetype = tide))+
+  geom_line()+
   labs(x = "Date",
-       y = "Mean cumulative dead oysters per bag") +
+       y = "Cumulative dead oysters per bag") +
   #scale_color_manual(labels = c("Daily Control", "Daily", "Weekly Control", "Weekly"), values = c("blue", "red", "green", "purple"))+
-  labs(color = "Bag position")+
+  labs(color = "Bag position/treatment")+
+  scale_color_manual(
+    values = c(
+      "0" = "forestgreen",
+      "1" = "dodgerblue",
+      "2" = "tomato"
+    ), labels = c("Solo (Sparse)", "Bottom (Dense)", "Top (Dense"))+
   geom_errorbar(aes(ymin=mean_cumdead-std_error, ymax=mean_cumdead+std_error), width=.2,
                  position=position_dodge(0.05))+
-  theme_classic()
+  theme_classic()+
+  ylim(0,35)+
+  theme(axis.title.x = element_text(color="black",size = 20),      # Change x-axis title size
+    axis.title.y = element_text(color="black",size = 20),      # Change y-axis title size
+    axis.text.x = element_text(color="black",size = 18),       # Change x-axis text size
+    axis.text.y = element_text(color="black",size = 18),
+    legend.text = element_text(color="black",size = 18),      # Change legend text size
+    legend.title = element_text(color="black",size = 20))
 ```
-
+```{r}
+means_cumdead %>%
+  filter(tide == "H")%>%
+  ggplot(aes(x = date, y = mean_cumdead, color = top_bottom)) +
+   geom_point(size=3, position=position_dodge(0.05)) +
+  geom_line()+
+  labs(x = "Date",
+       y = "Cumulative dead oysters per bag") +
+  #scale_color_manual(labels = c("Daily Control", "Daily", "Weekly Control", "Weekly"), values = c("blue", "red", "green", "purple"))+
+  labs(color = "Bag position")+
+  scale_color_manual(
+    values = c(
+      "0" = "forestgreen",
+      "1" = "dodgerblue",
+      "2" = "tomato"
+    ), labels = c("Solo (Sparse)", "Bottom (Dense)", "Top (Dense"))+
+  geom_errorbar(aes(ymin=mean_cumdead-std_error, ymax=mean_cumdead+std_error), width=.2,
+                 position=position_dodge(0.05))+
+  
+  theme_classic()+
+  ylim(0,35)+
+  theme(axis.title.x = element_text(color="black",size = 20),      # Change x-axis title size
+    axis.title.y = element_text(color="black",size = 20),      # Change y-axis title size
+    axis.text.x = element_text(color="black",size = 18),       # Change x-axis text size
+    axis.text.y = element_text(color="black",size = 18),
+    legend.text = element_text(color="black",size = 18),      # Change legend text size
+    legend.title = element_text(color="black",size = 20))
+```
 ```{r}
 survival <- survival %>%
   group_by(bag_num, top_bottom) %>%
@@ -82,7 +123,7 @@ survival$days <- survival$days + 16
 
 ### Model 1
 ```{r}
-model1 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~  top_bottom+ tide + piling + rack +days +(1|bag_num),  data = survival, family = binomial()) #glmmTMB
+model1 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~  top_bottom+ tide + piling + rack + (1|days)+(1|bag_num),  data = survival, family = binomial()) #glmmTMB
 summary(model1)
 testDispersion(model1)
 tst_simres <- simulateResiduals(fittedModel = model1) #DHARMa
@@ -94,18 +135,18 @@ car::Anova(model1 , type = "III")
 ```
 ### Model 2
 ```{r}
-model2 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~ top_bottom*tide + piling + rack +days +(1|bag_num),  data = survival, family = binomial()) #glmmTMB
+model2 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~ top_bottom*tide + piling + rack +(1|days)+(1|bag_num),  data = survival, family = binomial()) #glmmTMB
 summary(model2)
 ```
 ### Model 3
 ```{r}
-model3 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~  tide * top_bottom + piling  +days +(1|bag_num),  data = survival, family = binomial()) #glmmTMB
+model3 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~  tide * top_bottom + piling+(1|days)+(1|bag_num),  data = survival, family = binomial()) #glmmTMB
 summary(model3)
 ```
 
 ### Model 4
 ```{r}
-model4 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~ tide * top_bottom +days +(1|bag_num),  data = survival, family = binomial()) #glmmTMB
+model4 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~ tide * top_bottom +(1|days) +(1|bag_num),  data = survival, family = binomial()) #glmmTMB
 summary(model4)
 
 testDispersion(model4)
@@ -117,6 +158,7 @@ car::Anova(model4 , type = "III")
 
 ### Maybe run a kaplan meier curve?? Does that make sense for this??? Look into it
 ```
+
 
 ### Emmeans
 ```{r}
@@ -134,6 +176,13 @@ contrast(emm_inter, method = "pairwise", by = "top_bottom")
 
 contrast(emm_inter, interaction = "pairwise")
 
+emm_tb <- emmeans(
+  model4,
+  ~ top_bottom | tide 
+)
+
+pairs(emm_tb,adjust = "sidak")
+
 
 ```
 
@@ -141,15 +190,141 @@ contrast(emm_inter, interaction = "pairwise")
 
 ### Model 8
 ```{r}
-model8 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~  top_bottom+(1|bag_num),  data = survival, family = binomial()) #glmmTMB
+model8 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~  top_bottom+(1|days)+(1|bag_num),  data = survival, family = binomial()) #glmmTMB
 summary(model8)
 
 ```
 
 
-### Model 9
+
+### Raw survival
 ```{r}
-model9 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~  tide *top_bottom+(1|bag_num),  data = survival, family = binomial()) #glmmTMB
-summary(model9)
+means_dead <- survival %>%
+  group_by(date, density, tide, top_bottom) %>%
+  summarise(mean_dead = mean(dead, , na.rm = TRUE),
+            std_error = sd(dead, na.rm = TRUE)/sqrt(length(dead)),
+            .groups = 'drop')
+
+
+
+
+means_dead %>%
+  filter(tide == "H")%>%
+  ggplot(aes(x = date, y = mean_dead, color = top_bottom)) +
+   geom_point(size=3, position=position_dodge(0.05)) +
+  #geom_line(aes(linetype = tide))+
+  labs(x = "Date",
+       y = "Mean dead oysters per bag") +
+  #scale_color_manual(labels = c("Daily Control", "Daily", "Weekly Control", "Weekly"), values = c("blue", "red", "green", "purple"))+
+  labs(color = "Bag position")+
+  geom_errorbar(aes(ymin=mean_dead-std_error, ymax=mean_dead+std_error), width=.2,
+                 position=position_dodge(0.05))+
+  theme_classic()+
+  ylim(0,13)
+```
+```{r}
+means_dead %>%
+  filter(tide == "L")%>%
+  ggplot(aes(x = date, y = mean_dead, color = top_bottom)) +
+   geom_point(size=3, position=position_dodge(0.05)) +
+  #geom_line(aes(linetype = tide))+
+  labs(x = "Date",
+       y = "Mean dead oysters per bag") +
+  #scale_color_manual(labels = c("Daily Control", "Daily", "Weekly Control", "Weekly"), values = c("blue", "red", "green", "purple"))+
+  labs(color = "Bag position")+
+  geom_errorbar(aes(ymin=mean_dead-std_error, ymax=mean_dead+std_error), width=.2,
+                 position=position_dodge(0.05))+
+  theme_classic()+
+  ylim(0,13)
+```
+## Mean dead models
+```{r}
+model1 <-glmmTMB(dead ~  top_bottom* tide + piling + rack +month +(1|bag_num),  data = survival, family = nbinom2()) #glmmTMB
+summary(model1)
+testDispersion(model1)
+tst_simres <- simulateResiduals(fittedModel = model1) #DHARMa
+plot(tst_simres)
+
+
+car::Anova(model1 , type = "III")
+```
+
+
+```{r}
+model2 <-glmmTMB(dead ~  top_bottom*tide*month + piling +rack +(1|bag_num),  data = survival, family = nbinom2()) #glmmTMB
+summary(model2)
+testDispersion(model2)
+tst_simres <- simulateResiduals(fittedModel = model2) #DHARMa
+plot(tst_simres)
+
+
+car::Anova(model2 , type = "III")
+```
+
+
+```{r}
+model3 <-glmmTMB(dead ~  top_bottom*tide*month + piling +(1|bag_num),  data = survival, family = nbinom2()) #glmmTMB
+summary(model3)
+testDispersion(model3)
+tst_simres <- simulateResiduals(fittedModel = model3) #DHARMa
+plot(tst_simres)
+
+
+car::Anova(model3 , type = "III")
+```
+
+
+
+```{r}
+model4 <-glmmTMB(dead ~  top_bottom*tide+month+(1|bag_num),  data = survival, family = nbinom2()) #glmmTMB
+summary(model4)
+testDispersion(model4)
+tst_simres <- simulateResiduals(fittedModel = model4) #DHARMa
+plot(tst_simres)
+
+
+car::Anova(model4 , type = "III")
+```
+
+
+```{r}
+survival$month <- month(survival$date)
+survival$month <- as.factor(survival$month)
+
+model5 <-glmmTMB(dead ~  top_bottom*tide*month+(1|bag_num),  data = survival, family = nbinom2()) #glmmTMB
+summary(model5)
+testDispersion(model5)
+tst_simres <- simulateResiduals(fittedModel = model4) #DHARMa
+plot(tst_simres)
+
+
+car::Anova(model5 , type = "III")
+
+hist(survival$dead)
 
 ```
+
+```{r}
+library(emmeans)
+
+emm_by_tide <- emmeans(model4, ~ top_bottom | tide)
+contrast(emm_by_tide, method = "pairwise")
+
+
+emm_inter <- emmeans(model4, ~ month | top_bottom * tide)
+pairs(emm_inter,adjust = "sidak")
+
+contrast(emm_inter, method = "pairwise", by = "top_bottom")
+
+
+contrast(emm_inter, interaction = "pairwise")
+
+
+emm_tb <- emmeans(
+  model4,
+  ~ top_bottom | tide * month
+)
+
+pairs(emm_tb,adjust = "sidak")
+```
+

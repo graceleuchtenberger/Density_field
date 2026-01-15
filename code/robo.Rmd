@@ -82,6 +82,7 @@ robo %>%
 robo %>%
   filter(bag == c(93:100))%>%
   filter(top_bottom == c("1", "2", "0"))%>%
+  filter()
   ggplot(aes(x=datetime, y=temp, colour = top_bottom))+
   geom_line()+
   theme(axis.text = element_text(size = 18, color = "black"),
@@ -212,7 +213,8 @@ robo_interp_mean %>%
 ```{r}
 robo_interp_mean %>%
   filter(tide == "L")%>%
-  filter(density == "D")%>%
+  filter(density == "S")%>%
+  #filter(month(datetime) == 9)%>%
   ggplot(aes(x=datetime, y=mean_temp, colour = top_bottom))+
   geom_line()+
   theme_classic()
@@ -232,8 +234,10 @@ temp_diff <- robo_mean_wide %>%
 
 
 ```{r}
+library(lubridate)
 temp_diff %>%
   filter(tide == "L")%>%
+  #filter(month(datetime) == 10)%>%
   ggplot(aes(x=datetime))+
   geom_line(aes(y=D_diff), color = "tomato")+
   #geom_line(aes(y = C_diff), color = "steelblue")+
