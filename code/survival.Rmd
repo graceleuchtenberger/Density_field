@@ -19,7 +19,7 @@ library(DHARMa)
 ```{r}
 setwd("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field")
 
-survival <- read_xlsx("data/Survival/12022025.xlsx")
+survival <- read_xlsx("data/Survival/01162026.xlsx")
 treat_key <- read_xlsx("data/treatment_key.xlsx")
 
 colnames(survival) <- c("date", "bag_num", "dead", "init_live_ImageJ")
@@ -59,13 +59,14 @@ means_cumdead %>%
   labs(x = "Date",
        y = "Cumulative dead oysters per bag") +
   #scale_color_manual(labels = c("Daily Control", "Daily", "Weekly Control", "Weekly"), values = c("blue", "red", "green", "purple"))+
+  scale_x_datetime(date_labels = "%b %Y", date_breaks = "1 month") +
   labs(color = "Bag position/treatment")+
   scale_color_manual(
     values = c(
       "0" = "forestgreen",
       "1" = "dodgerblue",
       "2" = "tomato"
-    ), labels = c("Solo (Sparse)", "Bottom (Dense)", "Top (Dense"))+
+    ), labels = c("Solo (Sparse)", "Bottom (Dense)", "Top (Dense)"))+
   geom_errorbar(aes(ymin=mean_cumdead-std_error, ymax=mean_cumdead+std_error), width=.2,
                  position=position_dodge(0.05))+
   theme_classic()+
@@ -86,6 +87,7 @@ means_cumdead %>%
   labs(x = "Date",
        y = "Cumulative dead oysters per bag") +
   #scale_color_manual(labels = c("Daily Control", "Daily", "Weekly Control", "Weekly"), values = c("blue", "red", "green", "purple"))+
+  scale_x_datetime(date_labels = "%b %Y", date_breaks = "1 month") +
   labs(color = "Bag position")+
   scale_color_manual(
     values = c(
@@ -205,7 +207,7 @@ means_dead <- survival %>%
             std_error = sd(dead, na.rm = TRUE)/sqrt(length(dead)),
             .groups = 'drop')
 
-
+survival$month <- month(survival$date)
 
 
 means_dead %>%
@@ -222,6 +224,7 @@ means_dead %>%
   theme_classic()+
   ylim(0,13)
 ```
+
 ```{r}
 means_dead %>%
   filter(tide == "L")%>%
@@ -294,7 +297,7 @@ survival$month <- as.factor(survival$month)
 model5 <-glmmTMB(dead ~  top_bottom*tide*month+(1|bag_num),  data = survival, family = nbinom2()) #glmmTMB
 summary(model5)
 testDispersion(model5)
-tst_simres <- simulateResiduals(fittedModel = model4) #DHARMa
+tst_simres <- simulateResiduals(fittedModel = model5) #DHARMa
 plot(tst_simres)
 
 
@@ -321,7 +324,7 @@ contrast(emm_inter, interaction = "pairwise")
 
 
 emm_tb <- emmeans(
-  model4,
+  model5,
   ~ top_bottom | tide * month
 )
 

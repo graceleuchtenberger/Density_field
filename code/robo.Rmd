@@ -203,7 +203,7 @@ robo_interp_mean <- interp %>%
 ```{r}
 robo_interp_mean %>%
   filter(tide == "H")%>%
-  filter(top_bottom %in% c("1", "0"))%>%
+  filter(top_bottom %in% c("1", "2"))%>%
   ggplot(aes(x=datetime, y=mean_temp, colour = top_bottom))+
   geom_line()+
   theme_classic()

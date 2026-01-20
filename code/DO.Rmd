@@ -180,7 +180,12 @@ do_diff <- do_mean_wide %>%
   mutate(D_diff = D - C,
          S_diff = S - C,
          DS_diff = D- S) 
-  
+
+do_maxmin <- do_diff %>%
+  group_by(density, tide, top_bottom, day)%>%
+  summarise(daymin = min(mean_temp),
+         daymax = max(mean_temp),
+         .groups = 'drop') 
 ```
 
 ```{r}
@@ -197,6 +202,7 @@ do_diff %>%
 
 do_diff %>%
   filter(tide == "L") %>%
+  #filter(datetime >"2025-07-29 00:00:00" & datetime < "2025-07-30 00:00:00")%>%
   ggplot(aes(x = datetime))+
   geom_point(aes(y=D_diff), color = "yellow")+
   geom_point(aes(y =S_diff), color = "green")+
@@ -332,8 +338,26 @@ do_maxmin %>%
   filter(density %in% c("C", "D", "S"))%>%
   ggplot(aes(x=day))+
   geom_line(aes(y=daymin, color = density))+
-  theme_classic()
+  scale_color_manual(values = c("black", "darkorange", "gold"), labels = c("Ambient (no oysters)", "Dense (300/bag)", "Sparse (150/bag)"))+
+  geom_hline(yintercept = 3, linetype = "dashed", color = "red")+
+  labs(x = "Daily minimum DO (mg/L)", y = "Date", color = "Bag density")+
+  theme_classic()+
+  theme(axis.title.x = element_text(color="black",size = 20),      # Change x-axis title size
+    axis.title.y = element_text(color="black",size = 20),      # Change y-axis title size
+    axis.text.x = element_text(color="black",size = 18),       # Change x-axis text size
+    axis.text.y = element_text(color="black",size = 18),
+    legend.text = element_text(color="black",size = 18),      # Change legend text size
+    legend.title = element_text(color="black",size = 20))
 ```
+
+```{r}
+do_maxmin %>%
+  filter(tide == "L")%>%
+  filter(density %in% c("C", "D", "S"))%>%
+  ggplot(aes(y = do_)) + 
+  geom_histogram(alpha=0.2, position="identity")
+```
+
 
 ```{r}
 do_diff_long <- do_diff %>%
