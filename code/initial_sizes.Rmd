@@ -24,6 +24,7 @@ colnames(sizes) <- c("date", "bag_num_og", "pic_num", "oyster_num", "length")
 ### Spread of initial sizes
 ```{r}
 hist(sizes$length)
+mean(sizes$length)
 ```
 
 ### Spread of initial sizes in each bag

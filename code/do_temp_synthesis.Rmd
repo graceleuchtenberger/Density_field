@@ -1,0 +1,61 @@
+---
+title: "do_temp_synth"
+output: html_document
+date: "2026-01-21"
+---
+
+Do this after you've gotten maxmin dfs for temp and DO 
+
+## Load libraries
+```{r}
+library(tidyverse)
+library(readr)
+library(ggplot2)
+library(readxl)
+library(lubridate)
+library(purrr)
+```
+
+```{r}
+colnames(robo_maxmin) <- c("density", "tide", "top_bottom", "day", "temp_min", "temp_max")
+colnames(do_diff_maxmin) <- c("tide", "treatment","day", "do_min", "do_max")
+
+do_diff_maxmin$density <- str_extract(do_diff_maxmin$treatment, "^[^_]+")
+do_diff_maxmin_2 <- do_diff_maxmin %>%
+  filter(density %in% c("D", "S"))
+
+do_diff_temp_maxmin <- left_join(robo_maxmin, do_diff_maxmin_2, by = c("day", "density", "tide"))
+do_diff_temp_maxmin <- na.omit(do_diff_temp_maxmin)
+
+do_diff_temp_maxmin$month <- month(do_diff_temp_maxmin$day)
+
+```
+
+
+## is DO min associated with intertidal heat stress 
+
+Looks like bigger swing in DO mins when temperature is lower, so does less time emersed = more time immersed = smaller do minimum? 
+
+```{r}
+do_diff_temp_maxmin %>%
+  filter(top_bottom %in% c("2", "0"))%>%
+  filter(density == "S")%>%
+  ggplot(aes(x=temp_max, y = do_min, color = tide))+
+  geom_point()+
+  theme_classic()
+```
+
+## is DO min associated with water temp
+```{r}
+do_diff_temp_maxmin %>%
+  filter(top_bottom %in% c("2", "0"))%>%
+  filter(density == "D")%>%
+  ggplot(aes(x=temp_min, y = do_min, color = tide))+
+  geom_point()+
+  theme_classic()
+```
+
+```{r}
+
+```
+

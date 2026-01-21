@@ -17,21 +17,23 @@ library(purrr)
 ```{r}
 
 
-files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/12022025")
+files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/01162026")
 
 robo<- data.frame()
 
 for (file in files){
   name <- gsub(".csv","", file)
-  robo_file <- read_csv(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/12022025/",file, sep = ""))
-  robo_file <- robo_file[-c(1:20), ]
+  robo_file <- read_csv(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/01162026/",file, sep = ""))
+  robo_file <- robo_file[-c(1:21), ]
   robo_file$sensor <- name
   robo <- rbind(robo, robo_file)
 }
 
 colnames(robo) <- c("datetime", "temp", "robo_sensor")
+robo$datetime <- format(robo$datetime, "%Y-%m-%d %H:%M")
 
-write.csv(robo, "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/12022025/robo_comb.csv")
+
+write.csv(robo, "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/01162026/robo_comb.csv")
 
 ```
 
@@ -82,7 +84,6 @@ robo %>%
 robo %>%
   filter(bag == c(93:100))%>%
   filter(top_bottom == c("1", "2", "0"))%>%
-  filter()
   ggplot(aes(x=datetime, y=temp, colour = top_bottom))+
   geom_line()+
   theme(axis.text = element_text(size = 18, color = "black"),
@@ -182,9 +183,10 @@ interp3 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~app
 robo1 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/10102025/robo_comb.csv")
 robo2 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/11062025/robo_comb.csv")
 robo3 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/12022025/robo_comb.csv")
+robo4 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/01162026/robo_comb.csv")
 
 
-interp <- bind_rows(interp1, interp2, interp3, robo1, robo2, robo3)
+interp <- bind_rows(interp1, interp2, interp3, robo1, robo2, robo3, robo4)
 
 interp$datetime <- as.POSIXct(interp$datetime, format = "%Y-%m-%d %H:%M:%S",  tz = "America/Los_Angeles")
 
@@ -201,10 +203,14 @@ robo_interp_mean <- interp %>%
 
 
 ```{r}
+robo_interp_mean$top_bottom <- as.factor(robo_interp_mean$top_bottom)
+robo_interp_mean <- robo_interp_mean %>% mutate(top_bottom = factor(top_bottom, levels = c("2", "0", "1", "SC", "DC")))
+
 robo_interp_mean %>%
   filter(tide == "H")%>%
-  filter(top_bottom %in% c("1", "2"))%>%
+  filter(top_bottom %in% c("2", "1"))%>%
   ggplot(aes(x=datetime, y=mean_temp, colour = top_bottom))+
+  scale_x_datetime(date_labels = "%b %Y", date_breaks = "1 month") +
   geom_line()+
   theme_classic()
 ```
@@ -213,9 +219,10 @@ robo_interp_mean %>%
 ```{r}
 robo_interp_mean %>%
   filter(tide == "L")%>%
-  filter(density == "S")%>%
+  filter(top_bottom %in% c("2", "1"))%>%
   #filter(month(datetime) == 9)%>%
   ggplot(aes(x=datetime, y=mean_temp, colour = top_bottom))+
+  scale_x_datetime(date_labels = "%b %Y", date_breaks = "1 month") +
   geom_line()+
   theme_classic()
 ```
@@ -292,6 +299,7 @@ robo_maxmin %>%
   filter(top_bottom %in% c("1", "2", "0"))%>%
   ggplot(aes(x=day))+
   geom_line(aes(y=daymax, color = top_bottom))+
+  scale_color_manual(values = c("darkorange","black",  "gold"), labels = c("Dense (top layer)", "Sparse (solo bag)", "Dense (bottom layer)"))+
   theme_classic()
 ```
 

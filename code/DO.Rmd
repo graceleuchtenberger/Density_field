@@ -10,6 +10,8 @@ library(tidyverse)
 library(readr)
 library(ggplot2)
 library(readxl)
+library(lubridate)
+library(hms)
 
 "https://towardsdatascience.com/how-to-automatically-import-and-combine-multiple-files-in-r-30a77c0a7732/"
 ```
@@ -334,13 +336,13 @@ do_maxmin <- do_mean %>%
 
 ```{r}
 do_maxmin %>%
-  filter(tide == "L")%>%
+  filter(tide == "H")%>%
   filter(density %in% c("C", "D", "S"))%>%
   ggplot(aes(x=day))+
   geom_line(aes(y=daymin, color = density))+
   scale_color_manual(values = c("black", "darkorange", "gold"), labels = c("Ambient (no oysters)", "Dense (300/bag)", "Sparse (150/bag)"))+
   geom_hline(yintercept = 3, linetype = "dashed", color = "red")+
-  labs(x = "Daily minimum DO (mg/L)", y = "Date", color = "Bag density")+
+  labs(x = "Date", y = "Daily minimum DO (mg/L)", color = "Bag density")+
   theme_classic()+
   theme(axis.title.x = element_text(color="black",size = 20),      # Change x-axis title size
     axis.title.y = element_text(color="black",size = 20),      # Change y-axis title size
@@ -382,4 +384,51 @@ do_diff_maxmin %>%
   theme_classic()+
   ylim(-4, 0)
 ```
+```{r}
+median(do_diff$D_diff)
+median(do_diff$S_diff)
+median(do_diff$DS_diff)
+
+
+ggplot(do_diff)+
+  geom_histogram(aes(y = DS_diff), fill = "limegreen")+
+  geom_histogram(aes(y = S_diff), fill = "gold")+
+  geom_histogram(aes(y = D_diff), fill = "darkorange")+
+  theme_classic()
+
+```
+
+## Getting tide data going
+```{r}
+June_tide <- read_xlsx("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/Jun_tide.xlsx", col_names = TRUE)
+June_tide <- June_tide[-1,]
+Jul_tide <- read_xlsx("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/Jul_tide.xlsx", col_names = TRUE)
+Jul_tide <- Jul_tide[-1,]
+Aug_tide <- read_xlsx("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/Aug_tide.xlsx", col_names = TRUE)
+Aug_tide <- Aug_tide[-1,]
+
+DO_tide <- bind_rows(June_tide, Jul_tide, Aug_tide)
+
+colnames(DO_tide) <- c("info", "date", "day", "H_L", "pred_height", "pred_height2", "time", "data_range", "units", "datum", "disclaimer",	"EndDate",	"IntervalType",	"origin",	"producttype",	"state",	"stationid",	"stationidagg",	"stationname",	"stationtype",	"Timezone")
+
+DO_tide$date <- as.Date(DO_tide$date)
+DO_tide$time <- as_hms(strptime(DO_tide$time, format = "%I:%M %p"))
+DO_tide$pred_height <- as.numeric(DO_tide$pred_height)
+
+DO_tide$datetime <- as.POSIXct(paste(DO_tide$date, DO_tide$time), format="%Y-%m-%d %H:%M:%S")
+
+
+
+```
+
+
+
+```{r}
+ggplot(DO_tide, aes(x=datetime, y=pred_height))+
+  geom_point()+
+  geom_line()+
+  theme_classic()
+```
+
+
 
