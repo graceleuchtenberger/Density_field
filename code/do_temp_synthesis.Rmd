@@ -34,7 +34,9 @@ do_diff_temp_maxmin$month <- month(do_diff_temp_maxmin$day)
 
 ## is DO min associated with intertidal heat stress 
 
-Looks like bigger swing in DO mins when temperature is lower, so does less time emersed = more time immersed = smaller do minimum? 
+Looks like bigger swing in DO diff when temperature is lower, so does less time emersed = more time immersed = smaller do minimum? 
+
+Low tide def has more low points but not that many more, 
 
 ```{r}
 do_diff_temp_maxmin %>%
@@ -46,6 +48,8 @@ do_diff_temp_maxmin %>%
 ```
 
 ## is DO min associated with water temp
+Seems like it might be a little bit, with little swings here and there especially for high tide, but yes higher water temp seems to go with greater do diff
+
 ```{r}
 do_diff_temp_maxmin %>%
   filter(top_bottom %in% c("2", "0"))%>%

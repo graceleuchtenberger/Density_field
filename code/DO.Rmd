@@ -183,6 +183,8 @@ do_diff <- do_mean_wide %>%
          S_diff = S - C,
          DS_diff = D- S) 
 
+
+
 do_maxmin <- do_diff %>%
   group_by(density, tide, top_bottom, day)%>%
   summarise(daymin = min(mean_temp),
@@ -330,6 +332,13 @@ do_maxmin <- do_mean %>%
   summarise(daymin = min(mean_DO),
          daymax = max(mean_DO),
          .groups = 'drop') 
+
+do_maxmin <- do_mean %>%
+  arrange(day, mean_DO) %>%
+  group_by(day, density, tide) %>%
+  slice(1, n())
+
+
   
 ```
 
