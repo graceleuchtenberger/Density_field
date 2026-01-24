@@ -78,12 +78,25 @@ mean_rack_sizes <- sizes %>%
 ```{r}
 ggplot(mean_sizes, aes(x=date, y=mean_length, color = top_bottom, linetype = tide))+
   geom_point()+
-  geom_line()+
+  geom_line(linewidth = 2)+
   labs(x = "Date",
-       y = "Mean Length") +
-  labs(color = "Bag position")+
+       y = "Height (mm)") +
+  labs(color = "Bag position", linetype = "Tide height")+
+  scale_color_manual(
+    values = c(
+      "0" = "gold",
+      "1" = "darkorange",
+      "2" = "darkred"
+    ), labels = c("Solo (Sparse)", "Bottom (Dense)", "Top (Dense"))+
   geom_errorbar(aes(ymin=mean_length-std_error, ymax=mean_length+std_error), width=.2)+
-  theme_classic()
+  scale_linetype_manual(values = c("solid", "dashed"), labels = c("MLW", "MLLW"))+
+  theme_classic()+
+  theme(axis.title.x = element_text(color="black",size = 20),      # Change x-axis title size
+    axis.title.y = element_text(color="black",size = 20),      # Change y-axis title size
+    axis.text.x = element_text(color="black",size = 18),       # Change x-axis text size
+    axis.text.y = element_text(color="black",size = 18),
+    legend.text = element_text(color="black",size = 18),      # Change legend text size
+    legend.title = element_text(color="black",size = 20))
 ```
 ```{r}
 ggplot(mean_piling_sizes, aes(x=date, y=mean_length, color = top_bottom, linetype = piling))+

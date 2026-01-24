@@ -5,6 +5,7 @@ date: "2025-07-14"
 ---
 
 ### Load Libraries
+
 ```{r}
 library(tidyverse)
 library(readr)
@@ -16,8 +17,8 @@ library(hms)
 "https://towardsdatascience.com/how-to-automatically-import-and-combine-multiple-files-in-r-30a77c0a7732/"
 ```
 
-
 ### Load files
+
 ```{r}
 files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/07092025/do_xlsx_files")
 
@@ -106,9 +107,6 @@ do <- do[do$datetime < as.POSIXct("2025-08-29 10:25:00"), ]
 
 ```
 
-
-
-
 ```{r}
 do_current <- left_join(do, current, by = "datetime")
 do_current$up_Immersed <- ifelse(do_current$up_speed < 10,  "Y", "N" )
@@ -128,8 +126,6 @@ do_current %>%
 
 ```
 
-
-
 ```{r}
 do_current %>%
   filter(bag == c(93:100))%>%
@@ -147,29 +143,53 @@ do_current %>%
   geom_point()+
   theme_classic()
 ```
+
 ```{r}
-do_mean <- do_current %>%
+
+do_mean_up <- do_current %>%
   filter(up_Immersed == "Y") %>%
   group_by(datetime, density, tide) %>%
-  summarize(mean_DO = mean(DO_adj))
+  summarize(mean_DO_up = mean(DO_adj))
+
+do_mean_low <- do_current %>%
+  filter(low_Immersed == "Y") %>%
+  group_by(datetime, density, tide) %>%
+  summarize(mean_DO_low = mean(DO_adj))
+
+do_mean<- do_current %>%
+  group_by(datetime, density, tide) %>%
+  summarize(mean_DO= mean(DO_adj))
+
+
+do_mean <- do_current %>%
+  group_by(datetime, density, tide) %>%  # whatever defines a single timepoint
+  summarise(
+    mean_DO = mean(DO_adj, na.rm = TRUE),
+    low_Immersed = first(low_Immersed),
+    up_Immersed = first(up_Immersed),
+    .groups = "drop"
+  )
   
 ```
 
 ```{r}
 do_mean %>%
   filter(tide == "L") %>%
+  filter(low_Immersed == "Y")%>%
   ggplot(aes(x = datetime, y = mean_DO, color = density))+
   geom_point()+
   theme_classic()+
-  ylim(0,20)
+  ylim(0,22)
 ```
+
 ```{r}
 do_mean %>%
   filter(tide == "H") %>%
+  filter(up_Immersed == "Y")%>%
   ggplot(aes(x = datetime, y = mean_DO, color = density))+
   geom_point()+
   theme_classic()+
-  ylim(2,20)
+  ylim(0,22)
 ```
 
 ```{r}
@@ -183,18 +203,12 @@ do_diff <- do_mean_wide %>%
          S_diff = S - C,
          DS_diff = D- S) 
 
-
-
-do_maxmin <- do_diff %>%
-  group_by(density, tide, top_bottom, day)%>%
-  summarise(daymin = min(mean_temp),
-         daymax = max(mean_temp),
-         .groups = 'drop') 
 ```
 
 ```{r}
 do_diff %>%
   filter(tide == "H") %>%
+  filter(up_Immersed == "Y")%>%
   ggplot(aes(x = datetime))+
   geom_point(aes(y=D_diff), color = "yellow")+
   geom_point(aes(y =S_diff), color = "green")+
@@ -206,7 +220,7 @@ do_diff %>%
 
 do_diff %>%
   filter(tide == "L") %>%
-  #filter(datetime >"2025-07-29 00:00:00" & datetime < "2025-07-30 00:00:00")%>%
+  filter(low_Immersed == "Y")%>%
   ggplot(aes(x = datetime))+
   geom_point(aes(y=D_diff), color = "yellow")+
   geom_point(aes(y =S_diff), color = "green")+
@@ -218,17 +232,18 @@ do_diff %>%
 
 do_diff %>%
   filter(tide == "L") %>%
+  filter(low_Immersed == "Y")%>%
   ggplot(aes(x = datetime))+
   geom_point(aes(y=DS_diff), color = "blue")+
   theme_classic()+
   geom_hline(yintercept = 0)
 ```
 
-
 ```{r}
 
 do_diff %>%
   filter(tide == "H") %>%
+  filter(up_Immersed == "Y")%>%
   ggplot(aes(x = datetime))+
   geom_point(aes(y=DS_diff), color = "blue")+
   theme_classic()+
@@ -236,12 +251,16 @@ do_diff %>%
 ```
 
 ### Means of DO diffs (density treatment vs control)
+
 ```{r}
 do_diff_H <- do_diff %>%
-  filter(tide == "H")
+  filter(tide == "H")%>%
+  filter(up_Immersed == "Y")
 
 do_diff_L <- do_diff %>%
-  filter(tide == "L")
+  filter(tide == "L")%>%
+  filter(low_Immersed == "Y")
+
 
 mean(do_diff_H$D_diff)
 sd(do_diff_H$D_diff)
@@ -259,19 +278,21 @@ sd(do_diff_L$DS_diff)
 
 ```
 
-
 ### Is there a difference between dense and sparse racks
 
 ```{r}
 do_rack_mean <- do_current %>%
-  filter(up_Immersed == "Y") %>%
   group_by(datetime, rack, density, tide) %>%
-  summarize(mean_DO = mean(DO_adj))
+  summarize(mean_DO = mean(DO_adj),
+            low_Immersed = first(low_Immersed),
+            up_Immersed = first(up_Immersed),
+            .groups = "drop")
 ```
 
 ```{r}
 do_rack_mean %>%
   filter(tide == "L") %>%
+  filter(low_Immersed == "Y")%>%
   filter(density == "C") %>%
   ggplot(aes(x = datetime, y = mean_DO, color = rack))+
   geom_point()+
@@ -281,6 +302,7 @@ do_rack_mean %>%
 ```{r}
 do_rack_mean %>%
   filter(tide == "H") %>%
+  filter(up_Immersed == "Y")%>%
   filter(density == "C") %>%
   ggplot(aes(x = datetime, y = mean_DO, color = rack))+
   geom_point()+
@@ -301,10 +323,10 @@ do_rack_diff <- do_rack_mean_wide %>%
   
 ```
 
-
 ```{r}
 do_rack_diff %>%
   filter(tide == "H") %>%
+  filter(up_Immersed == "Y") %>%
   ggplot(aes(x = datetime))+
   geom_point(aes(y=D_diff), color = "yellow")+
   geom_point(aes(y =S_diff), color = "green")+
@@ -314,61 +336,169 @@ do_rack_diff %>%
 ```
 
 ```{r}
-mean(do_rack_diff$C_diff)
-sd(do_rack_diff$C_diff)
+do_rack_diff %>%
+  filter(tide == "L") %>%
+  filter(low_Immersed == "Y") %>%
+  ggplot(aes(x = datetime))+
+  geom_point(aes(y=D_diff), color = "yellow")+
+  geom_point(aes(y =S_diff), color = "green")+
+  geom_point(aes(y=C_diff), color = "blue")+
+  theme_classic()+
+  geom_hline(yintercept = 0)
+```
 
-mean(do_rack_diff$D_diff)
-sd(do_rack_diff$D_diff)
+```{r}
+do_rack_diff %>%
+  filter(tide == "H")%>%
+  filter(up_Immersed == "Y")%>%
+  pull(D_diff) %>%
+  mean(na.rm = TRUE)
 
-mean(do_rack_diff$S_diff)
-sd(do_rack_diff$S_diff)
+do_rack_diff %>%
+  filter(tide == "H")%>%
+  filter(up_Immersed == "Y")%>%
+  pull(D_diff) %>%
+  sd(na.rm = TRUE)
+
+do_rack_diff %>%
+  filter(tide == "H")%>%
+  filter(up_Immersed == "Y")%>%
+  pull(S_diff) %>%
+  mean(na.rm = TRUE)
+
+do_rack_diff %>%
+  filter(tide == "H")%>%
+  filter(up_Immersed == "Y")%>%
+  pull(S_diff) %>%
+  sd(na.rm = TRUE)
+
+do_rack_diff %>%
+  filter(tide == "H")%>%
+  filter(up_Immersed == "Y")%>%
+  pull(C_diff) %>%
+  mean(na.rm = TRUE)
+
+do_rack_diff %>%
+  filter(tide == "H")%>%
+  filter(up_Immersed == "Y")%>%
+  pull(C_diff) %>%
+  sd(na.rm = TRUE)
+
+
+# Low tide
+do_rack_diff %>%
+  filter(tide == "L")%>%
+  filter(low_Immersed == "Y")%>%
+  pull(D_diff) %>%
+  mean(na.rm = TRUE)
+
+do_rack_diff %>%
+  filter(tide == "L")%>%
+  filter(low_Immersed == "Y")%>%
+  pull(D_diff) %>%
+  sd(na.rm = TRUE)
+
+do_rack_diff %>%
+  filter(tide == "L")%>%
+  filter(low_Immersed == "Y")%>%
+  pull(S_diff) %>%
+  mean(na.rm = TRUE)
+
+do_rack_diff %>%
+  filter(tide == "L")%>%
+  filter(low_Immersed == "Y")%>%
+  pull(S_diff) %>%
+  sd(na.rm = TRUE)
+
+do_rack_diff %>%
+  filter(tide == "L")%>%
+  filter(low_Immersed == "Y")%>%
+  pull(C_diff) %>%
+  mean(na.rm = TRUE)
+
+do_rack_diff %>%
+  filter(tide == "L")%>%
+  filter(low_Immersed == "Y")%>%
+  pull(C_diff) %>%
+  sd(na.rm = TRUE)
+
+
 ```
 
 ```{r}
 do_mean$day <- as.Date(do_mean$datetime)
 
-do_maxmin <- do_mean %>%
-  group_by(density, tide, day)%>%
-  summarise(daymin = min(mean_DO),
-         daymax = max(mean_DO),
-         .groups = 'drop') 
+do_maxmin <- do_mean %>% 
+  group_by(density, tide, day) %>%
+  summarise(
+    daymax_DO = max(mean_DO, na.rm = TRUE),
+    daymax_DO_time = datetime[which.max(mean_DO)],
+    daymin_DO = min(mean_DO, na.rm = TRUE),
+    daymin_DO_time = datetime[which.min(mean_DO)],
+    low_Immersed = first(low_Immersed),
+    up_Immersed = first(up_Immersed),
+    .groups = "drop"
+  )
 
 do_maxmin <- do_mean %>%
-  arrange(day, mean_DO) %>%
-  group_by(day, density, tide) %>%
-  slice(1, n())
-
-
-  
+  filter(
+    (tide == "H" & up_Immersed == "Y") |
+    (tide == "L" & low_Immersed == "Y")
+  ) %>%
+  group_by(day, tide, density) %>%   # add other grouping vars if needed
+  summarise(
+    daymax_DO = max(mean_DO, na.rm = TRUE),
+    daymax_DO_time = datetime[which.max(mean_DO)],
+    daymin_DO = min(mean_DO, na.rm = TRUE),
+    daymin_DO_time = datetime[which.min(mean_DO)],
+    .groups = "drop"
+  )
 ```
 
-
 ```{r}
-do_maxmin %>%
-  filter(tide == "H")%>%
+lowtide_minplot <- do_maxmin %>%
+  filter(tide == "L")%>%
   filter(density %in% c("C", "D", "S"))%>%
-  ggplot(aes(x=day))+
-  geom_line(aes(y=daymin, color = density))+
+  ggplot(aes(x=daymin_DO_time, y=daymin_DO, color = density))+
+  geom_line()+
   scale_color_manual(values = c("black", "darkorange", "gold"), labels = c("Ambient (no oysters)", "Dense (300/bag)", "Sparse (150/bag)"))+
   geom_hline(yintercept = 3, linetype = "dashed", color = "red")+
   labs(x = "Date", y = "Daily minimum DO (mg/L)", color = "Bag density")+
   theme_classic()+
-  theme(axis.title.x = element_text(color="black",size = 20),      # Change x-axis title size
+  theme(axis.text.y = element_text(color="black",size = 18),      # Change x-axis title size
     axis.title.y = element_text(color="black",size = 20),      # Change y-axis title size
-    axis.text.x = element_text(color="black",size = 18),       # Change x-axis text size
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank(),
+    legend.position = "none")+
+  ylim(1,11); lowtide_minplot
+```
+
+```{r}
+hitide_minplot <- do_maxmin %>%
+  filter(tide == "H")%>%
+  filter(density %in% c("C", "D", "S"))%>%
+  ggplot(aes(x=daymin_DO_time, y=daymin_DO, color = density))+
+  geom_line()+
+  scale_color_manual(values = c("black", "darkorange", "gold"), labels = c("Ambient (no oysters)", "Dense (300/bag)", "Sparse (150/bag)"))+
+  geom_hline(yintercept = 3, linetype = "dashed", color = "red")+
+  labs(x = "Date", y = "Daily minimum DO (mg/L)", color = "Bag density")+
+  theme_classic()+
+  theme(axis.title.x = element_blank(),      # Change x-axis title size
+    axis.title.y = element_text(color="black",size = 20),      # Change y-axis title size
+    axis.text.x = element_blank(),       # Change x-axis text size
     axis.text.y = element_text(color="black",size = 18),
-    legend.text = element_text(color="black",size = 18),      # Change legend text size
-    legend.title = element_text(color="black",size = 20))
+    legend.position = "none")+
+  ylim(1,11); hitide_minplot
 ```
 
 ```{r}
 do_maxmin %>%
   filter(tide == "L")%>%
+  filter(low_immersed = "Y")%>%
   filter(density %in% c("C", "D", "S"))%>%
   ggplot(aes(y = do_)) + 
   geom_histogram(alpha=0.2, position="identity")
 ```
-
 
 ```{r}
 do_diff_long <- do_diff %>%
@@ -384,7 +514,6 @@ do_diff_maxmin <- do_diff_long %>%
   
 ```
 
-
 ```{r}
 do_diff_maxmin %>%
   filter(tide == "L")%>%
@@ -393,6 +522,7 @@ do_diff_maxmin %>%
   theme_classic()+
   ylim(-4, 0)
 ```
+
 ```{r}
 median(do_diff$D_diff)
 median(do_diff$S_diff)
@@ -408,6 +538,7 @@ ggplot(do_diff)+
 ```
 
 ## Getting tide data going
+
 ```{r}
 June_tide <- read_xlsx("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/DO/Jun_tide.xlsx", col_names = TRUE)
 June_tide <- June_tide[-1,]
@@ -430,7 +561,12 @@ DO_tide$datetime <- as.POSIXct(paste(DO_tide$date, DO_tide$time), format="%Y-%m-
 
 ```
 
-
+```{r}
+ggplot(DO_tide, aes(x=date, y=pred_height))+
+  geom_point()+
+  geom_line()+
+  theme_classic()
+```
 
 ```{r}
 ggplot(DO_tide, aes(x=datetime, y=pred_height))+
@@ -439,5 +575,132 @@ ggplot(DO_tide, aes(x=datetime, y=pred_height))+
   theme_classic()
 ```
 
+```{r}
+DO_tide_2 <- DO_tide %>%
+  select(c("date", "datetime", "pred_height"))
+```
+
+```{r}
+
+do_maxmin <- do_mean %>% 
+  group_by(density, tide, day) %>%
+  summarise(
+    daymax_DO = max(mean_DO, na.rm = TRUE),
+    daymax_DO_time = datetime[which.max(mean_DO)],
+    daymin_DO = min(mean_DO, na.rm = TRUE),
+    daymin_DO_time = datetime[which.min(mean_DO)],
+    .groups = "drop"
+  )
+
+do_maxmin_long <- do_maxmin %>%
+  pivot_longer(
+    cols = c(daymax_DO, daymax_DO_time,
+             daymin_DO, daymin_DO_time),
+    names_to = c("stat", ".value"),
+    names_pattern = "^day(max|min)_(DO(?:_time)?)$"
+  )
+
+do_maxmin_long <- do_maxmin_long %>%
+  rename(datetime = DO_time)
+
+do_maxmin_long <- do_maxmin_long %>%
+  rename(date = day)
 
 
+DO_withtides <- bind_rows(DO_tide_2, do_maxmin_long)
+
+
+```
+
+```{r}
+DO_withtides %>% 
+  filter(stat == "min")%>% 
+  filter(tide == "L")%>% 
+  ggplot(aes(x=datetime, y=pred_height))+
+  geom_point()+
+  geom_point(aes(y=DO, color = density))+
+  geom_line()+
+  theme_classic()
+```
+
+```{r}
+DO_withtides <- DO_withtides %>%
+  filter(date < "2025-08-20" & date > "2025-06-23")
+
+tide_plot <- DO_tide %>%
+  filter(date < "2025-08-20" & date > "2025-06-23")%>%
+  ggplot(aes(x=datetime, y=pred_height))+
+  geom_line(color = "blue")+
+  geom_point(color = "blue")+
+  labs(x = "Datetime",
+       y= "Predicted tide height (ft)")+
+  theme_classic()+
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_text(size = 18, color= "black"),
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(size = 20, color= "black"),
+        legend.text = element_text(size = 18, color= "black"),
+        legend.title = element_text(size = 20, color= "black")); tide_plot
+
+
+
+```
+
+```{r}
+gridExtra::grid.arrange(tide_plot, hitide_minplot, lowtide_minplot, ncol = 1)
+```
+
+## Do diff with immersion data
+
+```{r}
+
+do_diff_long <- do_diff %>%
+  subset(select = -c(C, D, S))%>%
+  pivot_longer(cols = ends_with("diff"), names_to = "treatment", values_to = "DO_diff")
+
+do_diff_long$day <- as.Date(do_diff_long$datetime)
+
+do_diff_maxmin <- do_diff_long %>%
+  filter(
+    (tide == "H" & up_Immersed == "Y") |
+    (tide == "L" & low_Immersed == "Y")
+  ) %>%
+  group_by(day, tide, treatment) %>%   # add other grouping vars if needed
+  summarise(
+    daymax_DO = max(DO_diff, na.rm = TRUE),
+    daymax_DO_time = datetime[which.max(DO_diff)],
+    daymin_DO = min(DO_diff, na.rm = TRUE),
+    daymin_DO_time = datetime[which.min(DO_diff)],
+    .groups = "drop"
+  )
+```
+
+```{r}
+lowtide_mindiffplot <- do_diff_maxmin %>%
+  filter(tide == "L")%>%
+  filter(treatment %in% c("DS_diff", "D_diff", "S_diff"))%>%
+  ggplot(aes(x=daymin_DO_time, y=daymin_DO, color = treatment))+
+  geom_line()+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  scale_color_manual(values = c("darkorange",  "black", "gold"), labels = c("Dense (300/bag)", "Dense - Sparse", "Sparse (150/bag)"))+
+  labs(x = "Date", y = "Daily minimum DO (mg/L)", color = "Bag density")+
+  theme_classic()+
+  theme(axis.text = element_text(color="black",size = 18),      # Change x-axis title size
+    axis.title = element_text(color="black",size = 20))+
+  ylim(-4,0); lowtide_mindiffplot
+```
+
+```{r}
+hitide_mindiffplot <- do_diff_maxmin %>%
+  filter(tide == "H")%>%
+  filter(treatment %in% c("DS_diff", "D_diff", "S_diff"))%>%
+  ggplot(aes(x=daymin_DO_time, y=daymin_DO, color = treatment))+
+  geom_line()+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  scale_color_manual(values = c("darkorange",  "black", "gold"), labels = c("Dense (300/bag)", "Dense - Sparse", "Sparse (150/bag)"))+
+  labs(x = "Date", y = "Daily minimum DO (mg/L)", color = "Bag density")+
+  theme_classic()+
+  theme(axis.text = element_text(color="black",size = 18),      # Change x-axis title size
+    axis.title = element_text(color="black",size = 20))+
+  ylim(-4,0); hitide_mindiffplot
+```

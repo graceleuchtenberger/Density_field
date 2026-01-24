@@ -40,9 +40,9 @@ Low tide def has more low points but not that many more,
 
 ```{r}
 do_diff_temp_maxmin %>%
-  filter(top_bottom %in% c("2", "0"))%>%
-  filter(density == "S")%>%
-  ggplot(aes(x=temp_max, y = do_min, color = tide))+
+  filter(top_bottom %in% c("0", "2"))%>%
+  filter(tide == "H")%>%
+  ggplot(aes(x=temp_max, y = do_min, color = top_bottom))+
   geom_point()+
   theme_classic()
 ```
@@ -53,8 +53,8 @@ Seems like it might be a little bit, with little swings here and there especiall
 ```{r}
 do_diff_temp_maxmin %>%
   filter(top_bottom %in% c("2", "0"))%>%
-  filter(density == "D")%>%
-  ggplot(aes(x=temp_min, y = do_min, color = tide))+
+  filter(tide == "L")%>%
+  ggplot(aes(x=temp_min, y = do_min, color = top_bottom))+
   geom_point()+
   theme_classic()
 ```

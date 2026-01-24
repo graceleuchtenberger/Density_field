@@ -55,7 +55,7 @@ means_cumdead %>%
   filter(tide == "L")%>%
   ggplot(aes(x = date, y = mean_cumdead, color = top_bottom)) +
    geom_point(size=3, position=position_dodge(0.05)) +
-  geom_line()+
+  geom_line(linewidth = 2, linetype = "dashed")+
   labs(x = "Date",
        y = "Cumulative dead oysters per bag") +
   #scale_color_manual(labels = c("Daily Control", "Daily", "Weekly Control", "Weekly"), values = c("blue", "red", "green", "purple"))+
@@ -63,9 +63,9 @@ means_cumdead %>%
   labs(color = "Bag position/treatment")+
   scale_color_manual(
     values = c(
-      "0" = "forestgreen",
-      "1" = "dodgerblue",
-      "2" = "tomato"
+      "0" = "gold",
+      "1" = "darkorange",
+      "2" = "darkred"
     ), labels = c("Solo (Sparse)", "Bottom (Dense)", "Top (Dense)"))+
   geom_errorbar(aes(ymin=mean_cumdead-std_error, ymax=mean_cumdead+std_error), width=.2,
                  position=position_dodge(0.05))+
@@ -83,7 +83,7 @@ means_cumdead %>%
   filter(tide == "H")%>%
   ggplot(aes(x = date, y = mean_cumdead, color = top_bottom)) +
    geom_point(size=3, position=position_dodge(0.05)) +
-  geom_line()+
+  geom_line(linewidth = 2)+
   labs(x = "Date",
        y = "Cumulative dead oysters per bag") +
   #scale_color_manual(labels = c("Daily Control", "Daily", "Weekly Control", "Weekly"), values = c("blue", "red", "green", "purple"))+
@@ -91,9 +91,9 @@ means_cumdead %>%
   labs(color = "Bag position")+
   scale_color_manual(
     values = c(
-      "0" = "forestgreen",
-      "1" = "dodgerblue",
-      "2" = "tomato"
+      "0" = "gold",
+      "1" = "darkorange",
+      "2" = "darkred"
     ), labels = c("Solo (Sparse)", "Bottom (Dense)", "Top (Dense"))+
   geom_errorbar(aes(ymin=mean_cumdead-std_error, ymax=mean_cumdead+std_error), width=.2,
                  position=position_dodge(0.05))+
@@ -107,6 +107,10 @@ means_cumdead %>%
     legend.text = element_text(color="black",size = 18),      # Change legend text size
     legend.title = element_text(color="black",size = 20))
 ```
+
+
+
+
 ```{r}
 survival <- survival %>%
   group_by(bag_num, top_bottom) %>%
@@ -183,8 +187,13 @@ emm_tb <- emmeans(
   ~ top_bottom | tide 
 )
 
-pairs(emm_tb,adjust = "sidak")
+emm_tb2 <- emmeans(
+  model4,
+  ~ tide | top_bottom 
+)
 
+pairs(emm_tb,adjust = "sidak")
+pairs(emm_tb2,adjust = "sidak")
 
 ```
 
@@ -330,4 +339,6 @@ emm_tb <- emmeans(
 
 pairs(emm_tb,adjust = "sidak")
 ```
+
+
 
