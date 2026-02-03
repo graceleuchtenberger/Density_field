@@ -479,16 +479,17 @@ pairs(emm_tb,adjust = "sidak")
 
 
 means_cumdead %>%
-  mutate(top_bottom = factor(top_bottom, levels = c("0", "2", "1"))) %>%
-  filter(tide == "H",
-         date == as.Date("2025-09-15"))%>%
-  ggplot(aes(x = top_bottom, y = mean_cumdead, color = top_bottom)) +
+  mutate(top_bottom = factor(top_bottom, levels = c("1", "2", "0"))) %>%
+  filter(date == as.Date("2025-09-15"))%>%
+  ggplot(aes(x = top_bottom, y = mean_cumdead, color = top_bottom, shape = tide)) +
    geom_point(size=3, position=position_dodge(0.05)) +
   geom_line(linewidth = 2, linetype = "solid")+
-  labs(x = "Date",
-       y = "Cumulative dead oysters per bag") +
+  labs(x = "Bag position / Treatment",
+       y = "Cumulative dead oysters per bag",
+       shape = "Tide Height") +
   labs(color = "Bag position/treatment")+
   scale_color_manual(values = c("1" = "dodgerblue","2" = "tomato", "0" = "black"), labels = c("Solo (Sparse)", "Bottom (Dense)", "Top (Dense)"))+
+  scale_shape_manual(values = c("H" = "circle","L" = "triangle"), labels = c("High", "Low"))+
   geom_errorbar(aes(ymin=mean_cumdead-std_error, ymax=mean_cumdead+std_error), width=.2,
                  position=position_dodge(0.05))+
   theme_classic()+

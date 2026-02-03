@@ -521,7 +521,8 @@ robo_maxmin  %>%
   theme(axis.text = element_text(color="black",size = 18),      # Change x-axis title size
     axis.title = element_text(color="black",size = 20),
     legend.text =element_text(color="black",size = 18),
-    legend.title = element_text(color="black",size = 20))
+    legend.title = element_text(color="black",size = 20))+
+  ylim(60, 105)
 ```
 
 ```{r}

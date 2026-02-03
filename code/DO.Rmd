@@ -810,3 +810,21 @@ submersion_time_long <- na.omit(submersion_time_long)
 
 
 ```
+
+```{r}
+do_maxmin  %>%
+  mutate(density = factor(density, levels = c("C", "D", "S"))) %>%
+  filter(day < "2025-08-29", day > "2025-06-24",
+         tide == "L",
+         filter(density %in% c("D", "S")))%>%
+  ggplot()+
+  geom_boxplot(aes(x = density, y=daymin_DO, fill = density))+
+  scale_fill_manual(values = c("dodgerblue","purple","black" ), labels = c("Ambient","Dense", "Sparse"))+
+  scale_x_discrete(labels = c("C" = "Ambient","D" = "Dense","S" = "Sparse")) +
+  labs(x = "Density Treatment", y = "Daily minimum DO (mg/L)", fill = "Density Treatment")+
+  theme_classic()+
+  theme(axis.text = element_text(color="black",size = 18),      # Change x-axis title size
+    axis.title = element_text(color="black",size = 20),
+    legend.text =element_text(color="black",size = 18),
+    legend.title = element_text(color="black",size = 20))
+```
