@@ -13,6 +13,8 @@ library(ggplot2)
 library(readxl)
 library(lubridate)
 library(hms)
+install.packages("ggpattern")
+library(ggpattern)
 
 "https://towardsdatascience.com/how-to-automatically-import-and-combine-multiple-files-in-r-30a77c0a7732/"
 ```
@@ -177,7 +179,7 @@ do_mean %>%
   filter(tide == "L") %>%
   filter(low_Immersed == "Y")%>%
   ggplot(aes(x = datetime, y = mean_DO, color = density))+
-  scale_x_datetime(limits = as.POSIXct(c("2025-07-25 00:00:00","2025-07-27 00:00:00")))+
+  scale_x_datetime(limits = as.POSIXct(c("2025-08-19 00:00:00","2025-08-28 00:00:00")))+
   geom_point()+
   theme_classic()+
   scale_color_manual(values = c( "black", "darkorange" ,"gold"), labels = c("Ambient", "Dense (300/bag)", "Sparse (150/bag)"))+
@@ -193,7 +195,7 @@ do_mean %>%
   filter(tide == "H") %>%
   filter(up_Immersed == "Y")%>%
   ggplot(aes(x = datetime, y = mean_DO, color = density))+
-  scale_x_datetime(limits = as.POSIXct(c("2025-07-25 00:00:00","2025-07-27 00:00:00")))+
+  scale_x_datetime(limits = as.POSIXct(c("2025-08-19 00:00:00","2025-08-28 00:00:00")))+
   geom_point()+
   theme_classic()+
   scale_color_manual(values = c( "black", "darkorange" ,"gold"), labels = c("Ambient", "Dense (300/bag)", "Sparse (150/bag)"))+
@@ -220,7 +222,6 @@ do_diff <- do_mean_wide %>%
 ```{r}
 do_diff %>%
   filter(tide == "H") %>%
-  filter(up_Immersed == "Y")%>%
   ggplot(aes(x = datetime))+
   geom_point(aes(y=D_diff), color = "yellow")+
   geom_point(aes(y =S_diff), color = "green")+
@@ -473,15 +474,15 @@ lowtide_minplot <- do_maxmin %>%
   filter(density %in% c("C", "D", "S"))%>%
   ggplot(aes(x=daymin_DO_time, y=daymin_DO, color = density))+
   geom_line()+
-  scale_color_manual(values = c("black", "darkorange", "gold"), labels = c("Ambient (no oysters)", "Dense (300/bag)", "Sparse (150/bag)"))+
-  geom_hline(yintercept = 3, linetype = "dashed", color = "red")+
+  scale_color_manual(values = c("blue", "purple", "black"), labels = c("Ambient (no oysters)", "Dense (300/bag)", "Sparse (150/bag)"))+
   labs(x = "Date", y = "Daily minimum DO (mg/L)", color = "Bag density")+
   theme_classic()+
   theme(axis.text.y = element_text(color="black",size = 18),      # Change x-axis title size
     axis.title.y = element_text(color="black",size = 20),      # Change y-axis title size
     axis.text.x = element_text(color="black",size = 18),
     axis.title.x = element_text(color="black",size = 20),
-    legend.position = "none")+
+    legend.text =  element_text(color="black",size = 18),
+    legend.title = element_text(color="black",size = 20))+
   ylim(1,11); lowtide_minplot
 ```
 
@@ -499,8 +500,7 @@ hitide_minplot <- do_maxmin %>%
     axis.title.y = element_text(color="black",size = 20),      # Change y-axis title size
     axis.text.x = element_blank(),       # Change x-axis text size
     axis.text.y = element_text(color="black",size = 18),
-    legend.text =element_text(color="black",size = 18),
-    legend.title = element_text(color="black",size = 20))+
+    legend.position = "none")+
   ylim(1,11); hitide_minplot
 ```
 
@@ -537,16 +537,67 @@ do_diff_maxmin %>%
 ```
 
 ```{r}
-median(do_diff$D_diff)
-median(do_diff$S_diff)
-median(do_diff$DS_diff)
+do_diff_long %>%
+  filter(treatment == "D_diff") %>%
+  group_by(tide) %>%
+  summarise(
+    median_DO_diff = median(DO_diff, na.rm = TRUE))
+
+do_diff_long %>%
+  filter(treatment == "DS_diff") %>%
+  group_by(tide) %>%
+  summarise(
+    median_DO_diff = median(DO_diff, na.rm = TRUE))
+
+do_diff_long %>%
+  filter(treatment == "S_diff") %>%
+  group_by(tide) %>%
+  summarise(
+    median_DO_diff = median(DO_diff, na.rm = TRUE))
+
+do_diff_long %>%
+  filter(treatment == "D_diff")%>%
+  ggplot(aes(y=DO_diff, fill= tide))+
+  geom_histogram(position = "identity",
+    alpha = 0.8,
+    bins = 30)+
+  scale_fill_manual(values = c("#a6caec",  "#215f9a"), labels = c("MLW", "MLLW"))+
+  labs(x = "Frequency", y = "Dense-Ambient DO (mg/L)", fill = "Tide height")+
+  theme_classic()+
+  geom_hline(yintercept = -0.28)+
+  geom_hline(yintercept = -0.63)+
+  theme(axis.text = element_text(color="black",size = 18),      # Change x-axis title size
+    axis.title = element_text(color="black",size = 20),
+    legend.text =element_text(color="black",size = 18),
+    legend.title = element_text(color="black",size = 20))
+
+do_diff_long %>%
+  filter(treatment == "DS_diff")%>%
+  ggplot(aes(y=DO_diff, fill= tide))+
+  geom_histogram(position = "identity",
+    alpha = 0.8,
+    bins = 30)+
+  scale_fill_manual(values = c("#a6caec",  "#215f9a"), labels = c("MLW", "MLLW"))+
+  labs(x = "Frequency", y = "Dense-Sparse DO (mg/L)", fill = "Tide")+
+  geom_hline(yintercept = -0.09)+
+  geom_hline(yintercept = -0.14)+
+  theme_classic()+
+  theme(axis.text = element_text(color="black",size = 18),      # Change x-axis title size
+    axis.title = element_text(color="black",size = 20),
+    legend.text =element_text(color="black",size = 18),
+    legend.title = element_text(color="black",size = 20))
+
+do_diff_long %>%
+  filter(treatment == "S_diff")%>%
+  ggplot(aes(y=DO_diff, fill= tide))+
+  geom_histogram(position = "identity",
+    alpha = 0.8,
+    bins = 30)+
+  theme_classic()+
+  theme(axis.text = element_text(color="black",size = 18),      # Change x-axis title size
+    axis.title = element_text(color="black",size = 20))
 
 
-ggplot(do_diff)+
-  geom_histogram(aes(y = DS_diff), fill = "limegreen")+
-  geom_histogram(aes(y = S_diff), fill = "gold")+
-  geom_histogram(aes(y = D_diff), fill = "darkorange")+
-  theme_classic()
 
 ```
 
@@ -638,7 +689,7 @@ DO_withtides %>%
 
 ```{r}
 DO_withtides <- DO_withtides %>%
-  filter(date < "2025-08-20" & date > "2025-06-23")
+  filter(date < "2025-08-29" & date > "2025-06-23")
 
 tide_plot <- DO_tide %>%
   filter(date < "2025-08-20" & date > "2025-06-23")%>%

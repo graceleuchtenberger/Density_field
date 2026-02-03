@@ -9,6 +9,8 @@ Do this after you've gotten maxmin dfs for temp and DO
 ## Load libraries
 ```{r}
 library(tidyverse)
+library(glmmTMB)
+library(DHARMa)
 library(readr)
 library(ggplot2)
 library(readxl)
@@ -40,12 +42,82 @@ Low tide def has more low points but not that many more,
 
 ```{r}
 do_diff_temp_maxmin %>%
-  filter(top_bottom %in% c("0", "2"))%>%
-  filter(tide == "H")%>%
-  ggplot(aes(x=temp_max, y = do_min, color = top_bottom))+
+  filter(top_bottom %in% c("0"))%>%
+  ggplot(aes(x=temp_max, y = do_min, color = tide))+
   geom_point()+
+  geom_smooth(method = "lm", se = TRUE,level = 0.95) +
   theme_classic()
+
+model_data <- do_diff_temp_maxmin %>%
+  filter(top_bottom %in% c("0", "2"))
+
+model_DOtemp1 <-glmmTMB(do_min ~  density + temp_max + tide + month, data = model_data, family = gaussian()) #glmmTMB
+summary(model_DOtemp1)
+car::Anova(model_DOtemp1,type = "III")
+
+model_DOtemp2 <-glmmTMB(do_min ~  density + temp_max * tide + month, data = model_data, family = gaussian()) #glmmTMB
+summary(model_DOtemp2)
+car::Anova(model_DOtemp2,type = "III")
+
+model_DOtemp3 <-glmmTMB(do_min ~  density + temp_max * tide * month, data = model_data, family = gaussian()) #glmmTMB
+summary(model_DOtemp3)
+car::Anova(model_DOtemp3,type = "III")
+
+model_DOtemp3 <-glmmTMB(do_min ~  density*tide + temp_max *month, data = model_data, family = gaussian()) #glmmTMB
+summary(model_DOtemp3)
+car::Anova(model_DOtemp3,type = "III")
+
+#winning model
+model_DOtemp3 <-glmmTMB(do_min ~  density+tide + temp_max *month, data = model_data, family = gaussian()) #glmmTMB
+summary(model_DOtemp3)
+car::Anova(model_DOtemp3,type = "III")
+
+
+
+model_DOtemp4 <-glmmTMB(do_min ~  density * temp_max * tide * month, data = model_data, family = gaussian()) #glmmTMB
+summary(model_DOtemp4)
+car::Anova(model_DOtemp4,type = "III")
+
 ```
+```{r}
+model_DOtemp1 <-glmmTMB(do_min ~  density + temp_min + tide + month, data = model_data, family = gaussian()) #glmmTMB
+summary(model_DOtemp1)
+car::Anova(model_DOtemp1,type = "III")
+
+model_DOtemp2 <-glmmTMB(do_min ~  density + temp_min * tide + month, data = model_data, family = gaussian()) #glmmTMB
+summary(model_DOtemp2)
+car::Anova(model_DOtemp2,type = "III")
+
+#winning model
+model_DOtemp3 <-glmmTMB(do_min ~  density + temp_min * tide * month, data = model_data, family = gaussian()) #glmmTMB
+summary(model_DOtemp3)
+car::Anova(model_DOtemp3,type = "III")
+
+model_DOtemp4 <-glmmTMB(do_min ~  density * temp_min * tide * month, data = model_data, family = gaussian()) #glmmTMB
+summary(model_DOtemp4)
+car::Anova(model_DOtemp4,type = "III")
+```
+```{r}
+model_DOtemp1 <-glmmTMB(do_min ~  density + temp_max + tide + month, data = do_diff_temp_maxmin, family = gaussian()) #glmmTMB
+summary(model_DOtemp1)
+car::Anova(model_DOtemp1,type = "III")
+
+model_DOtemp2 <-glmmTMB(do_min ~  density + temp_max * tide + month, data = do_diff_temp_maxmin, family = gaussian()) #glmmTMB
+summary(model_DOtemp2)
+car::Anova(model_DOtemp2,type = "III")
+
+#winning model
+model_DOtemp3 <-glmmTMB(do_min ~  density + temp_max * tide * month, data = do_diff_temp_maxmin, family = gaussian()) #glmmTMB
+summary(model_DOtemp3)
+car::Anova(model_DOtemp3,type = "III")
+
+model_DOtemp4 <-glmmTMB(do_min ~  density * temp_max* tide * month, data = do_diff_temp_maxmin, family = gaussian()) #glmmTMB
+summary(model_DOtemp4)
+car::Anova(model_DOtemp4,type = "III")
+```
+
+
+
 
 ## is DO min associated with water temp
 Seems like it might be a little bit, with little swings here and there especially for high tide, but yes higher water temp seems to go with greater do diff

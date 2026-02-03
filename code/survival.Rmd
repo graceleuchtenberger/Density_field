@@ -78,9 +78,44 @@ means_cumdead %>%
     legend.text = element_text(color="black",size = 18),      # Change legend text size
     legend.title = element_text(color="black",size = 20))
 ```
+
+```{r}
+means_cumdead %>%
+  filter(tide == "L")%>%
+  filter(top_bottom %in% c("2", "1"))%>%
+  ggplot(aes(x = date, y = mean_cumdead, color = top_bottom)) +
+   geom_point(size=3, position=position_dodge(0.05)) +
+  geom_line(linewidth = 2, linetype = "dashed")+
+  labs(x = "Date",
+       y = "Cumulative dead oysters per bag") +
+  #scale_color_manual(labels = c("Daily Control", "Daily", "Weekly Control", "Weekly"), values = c("blue", "red", "green", "purple"))+
+  scale_x_datetime(date_labels = "%b %Y", date_breaks = "1 month") +
+  labs(color = "Bag position/treatment")+
+  scale_color_manual(
+    values = c(
+      "1" = "darkorange",
+      "2" = "darkred"
+    ), labels = c("Solo (Sparse)", "Bottom (Dense)", "Top (Dense)"))+
+  geom_errorbar(aes(ymin=mean_cumdead-std_error, ymax=mean_cumdead+std_error), width=.2,
+                 position=position_dodge(0.05))+
+  theme_classic()+
+  ylim(0,35)+
+  theme(axis.title.x = element_text(color="black",size = 20),      # Change x-axis title size
+    axis.title.y = element_text(color="black",size = 20),      # Change y-axis title size
+    axis.text.x = element_text(color="black",size = 18),       # Change x-axis text size
+    axis.text.y = element_text(color="black",size = 18),
+    legend.text = element_text(color="black",size = 18),      # Change legend text size
+    legend.title = element_text(color="black",size = 20))
+```
+
+
+
+
 ```{r}
 means_cumdead %>%
   filter(tide == "H")%>%
+  #filter(date < "2025-10-15")%>%
+  filter(top_bottom == "2")%>%
   ggplot(aes(x = date, y = mean_cumdead, color = top_bottom)) +
    geom_point(size=3, position=position_dodge(0.05)) +
   geom_line(linewidth = 2)+
@@ -109,6 +144,31 @@ means_cumdead %>%
 ```
 
 
+```{r}
+means_cumdead %>%
+  filter(tide == "H")%>%
+  filter(top_bottom %in% c("2", "1"))%>%
+  filter(date < "2025-10-15")%>%
+  ggplot(aes(x = date, y = mean_cumdead, color = top_bottom)) +
+   geom_point(size=3, position=position_dodge(0.05)) +
+  geom_line(linewidth = 2, linetype = "solid")+
+  labs(x = "Date",
+       y = "Cumulative dead oysters per bag") +
+  #scale_color_manual(labels = c("Daily Control", "Daily", "Weekly Control", "Weekly"), values = c("blue", "red", "green", "purple"))+
+  scale_x_datetime(date_labels = "%b %Y", date_breaks = "1 month") +
+  labs(color = "Bag position/treatment")+
+  scale_color_manual(values = c("1" = "darkorange","2" = "darkred"), labels = c("Bottom (Dense)", "Top (Dense)"))+
+  geom_errorbar(aes(ymin=mean_cumdead-std_error, ymax=mean_cumdead+std_error), width=.2,
+                 position=position_dodge(0.05))+
+  theme_classic()+
+  ylim(0,35)+
+  theme(axis.title.x = element_text(color="black",size = 20),      # Change x-axis title size
+    axis.title.y = element_text(color="black",size = 20),      # Change y-axis title size
+    axis.text.x = element_text(color="black",size = 18),       # Change x-axis text size
+    axis.text.y = element_text(color="black",size = 18),
+    legend.text = element_text(color="black",size = 18),      # Change legend text size
+    legend.title = element_text(color="black",size = 20))
+```
 
 
 ```{r}
@@ -123,10 +183,82 @@ survival$days <- as.numeric(survival$date - min(survival$date))
 survival$days <- survival$days/86400
 survival$days <- survival$days + 16
 
+survival_summer <- survival %>%
+  filter(date < "2025-09-30")
+```
 
+## Models with summer data
+### Model 1
+```{r}
+model1 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~  top_bottom+ tide + piling + rack + (1|days)+(1|bag_num),  data = survival_summer, family = binomial()) #glmmTMB
+summary(model1)
+testDispersion(model1)
+tst_simres <- simulateResiduals(fittedModel = model1) #DHARMa
+plot(tst_simres)
+
+
+car::Anova(model1 , type = "III")
+
+```
+### Model 2
+```{r}
+model2 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~ top_bottom*tide + piling + rack +(1|days)+(1|bag_num),  data = survival_summer, family = binomial()) #glmmTMB
+summary(model2)
+```
+### Model 3
+```{r}
+model3 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~  tide * top_bottom + piling+(1|days)+(1|bag_num),  data = survival_summer, family = binomial()) #glmmTMB
+summary(model3)
+```
+
+### Model 4
+```{r}
+model4 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~ tide * top_bottom +(1|days) +(1|bag_num),  data = survival_summer, family = binomial()) #glmmTMB
+summary(model4)
+
+testDispersion(model4)
+tst_simres <- simulateResiduals(fittedModel = model4) #DHARMa
+plot(tst_simres)
+
+
+car::Anova(model4 , type = "III")
+
+### Maybe run a kaplan meier curve?? Does that make sense for this??? Look into it
 ```
 
 
+### Emmeans
+```{r}
+library(emmeans)
+
+emm_by_tide <- emmeans(model4, ~ top_bottom | tide)
+contrast(emm_by_tide, method = "pairwise")
+
+
+emm_inter <- emmeans(model4, ~ tide * top_bottom)
+contrast(emm_inter, method = "pairwise", by = "tide")
+
+contrast(emm_inter, method = "pairwise", by = "top_bottom")
+
+
+contrast(emm_inter, interaction = "pairwise")
+
+emm_tb <- emmeans(
+  model4,
+  ~ top_bottom | tide 
+)
+
+emm_tb2 <- emmeans(
+  model4,
+  ~ tide | top_bottom 
+)
+
+pairs(emm_tb,adjust = "sidak")
+pairs(emm_tb2,adjust = "sidak")
+
+```
+
+## Models with full data
 ### Model 1
 ```{r}
 model1 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~  top_bottom+ tide + piling + rack + (1|days)+(1|bag_num),  data = survival, family = binomial()) #glmmTMB
@@ -341,4 +473,38 @@ pairs(emm_tb,adjust = "sidak")
 ```
 
 
+```{r}
+
+
+
+
+means_cumdead %>%
+  mutate(top_bottom = factor(top_bottom, levels = c("0", "2", "1"))) %>%
+  filter(tide == "H",
+         date == as.Date("2025-09-15"))%>%
+  ggplot(aes(x = top_bottom, y = mean_cumdead, color = top_bottom)) +
+   geom_point(size=3, position=position_dodge(0.05)) +
+  geom_line(linewidth = 2, linetype = "solid")+
+  labs(x = "Date",
+       y = "Cumulative dead oysters per bag") +
+  labs(color = "Bag position/treatment")+
+  scale_color_manual(values = c("1" = "dodgerblue","2" = "tomato", "0" = "black"), labels = c("Solo (Sparse)", "Bottom (Dense)", "Top (Dense)"))+
+  geom_errorbar(aes(ymin=mean_cumdead-std_error, ymax=mean_cumdead+std_error), width=.2,
+                 position=position_dodge(0.05))+
+  theme_classic()+
+  scale_x_discrete(
+    labels = c("0" = "Solo (Sparse)","1" = "Bottom (Dense)", "2" = "Top (Dense)")
+  ) +
+  ylim(0,35)+
+  theme(axis.title.x = element_text(color="black",size = 20),      # Change x-axis title size
+    axis.title.y = element_text(color="black",size = 20),      # Change y-axis title size
+    axis.text.x = element_text(color="black",size = 18),       # Change x-axis text size
+    axis.text.y = element_text(color="black",size = 18),
+    legend.text = element_text(color="black",size = 18),      # Change legend text size
+    legend.title = element_text(color="black",size = 20))
+
+
+
+
+```
 
