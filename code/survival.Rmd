@@ -473,6 +473,8 @@ pairs(emm_tb,adjust = "sidak")
 ```
 
 
+### Prez graph
+
 ```{r}
 
 
@@ -482,19 +484,19 @@ means_cumdead %>%
   mutate(top_bottom = factor(top_bottom, levels = c("1", "2", "0"))) %>%
   filter(date == as.Date("2025-09-15"))%>%
   ggplot(aes(x = top_bottom, y = mean_cumdead, color = top_bottom, shape = tide)) +
-   geom_point(size=3, position=position_dodge(0.05)) +
+   geom_point(size=10, position=position_dodge(0.05)) +
   geom_line(linewidth = 2, linetype = "solid")+
   labs(x = "Bag position / Treatment",
        y = "Cumulative dead oysters per bag",
        shape = "Tide Height") +
   labs(color = "Bag position/treatment")+
-  scale_color_manual(values = c("1" = "dodgerblue","2" = "tomato", "0" = "black"), labels = c("Solo (Sparse)", "Bottom (Dense)", "Top (Dense)"))+
+  scale_color_manual(values = c("1" = "dodgerblue","2" = "tomato", "0" = "black"), labels = c("Dense (Bottom)", "Dense (Top)", "Sparse"))+
   scale_shape_manual(values = c("H" = "circle","L" = "triangle"), labels = c("High", "Low"))+
   geom_errorbar(aes(ymin=mean_cumdead-std_error, ymax=mean_cumdead+std_error), width=.2,
                  position=position_dodge(0.05))+
   theme_classic()+
   scale_x_discrete(
-    labels = c("0" = "Solo (Sparse)","1" = "Bottom (Dense)", "2" = "Top (Dense)")
+    labels = c("0" = "Sparse","1" = "Dense (Bottom)", "2" = "Dense (Top)")
   ) +
   ylim(0,35)+
   theme(axis.title.x = element_text(color="black",size = 20),      # Change x-axis title size

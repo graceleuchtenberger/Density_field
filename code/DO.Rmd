@@ -812,16 +812,27 @@ submersion_time_long <- na.omit(submersion_time_long)
 ```
 
 ```{r}
-do_maxmin  %>%
-  mutate(density = factor(density, levels = c("C", "D", "S"))) %>%
-  filter(day < "2025-08-29", day > "2025-06-24",
-         tide == "L",
-         filter(density %in% c("D", "S")))%>%
+labels <- c("C" = "Ambient","D" = "Dense (2 layers, 300 oysters)","S" = "Sparse (1 layer, 150 oysters)")
+
+
+mean_do_maxmin <- do_maxmin %>%
+  group_by(density, tide) %>%
+  filter(day < "2025-08-29", day > "2025-06-24")%>%
+  summarise(mean_max = mean(daymax_DO, na.rm = TRUE),
+            sde_max = sd(daymax_DO, na.rm = TRUE)/sqrt(length(daymax_DO)),
+            mean_min = mean(daymin_DO, na.rm = TRUE),
+            sde_min = sd(daymin_DO, na.rm = TRUE)/sqrt(length(daymin_DO)),
+            .groups = 'drop')
+
+
+mean_do_maxmin %>%
+  mutate(density = factor(density, levels = c("D", "S", "C"))) %>%
   ggplot()+
-  geom_boxplot(aes(x = density, y=daymin_DO, fill = density))+
-  scale_fill_manual(values = c("dodgerblue","purple","black" ), labels = c("Ambient","Dense", "Sparse"))+
-  scale_x_discrete(labels = c("C" = "Ambient","D" = "Dense","S" = "Sparse")) +
-  labs(x = "Density Treatment", y = "Daily minimum DO (mg/L)", fill = "Density Treatment")+
+  geom_point(aes(x = density,y=mean_min, color = density, shape = tide), size = 10)+
+  scale_color_manual(values = c("purple","black","forestgreen" ), labels = c("Bottom (Dense)","Top (Dense)", "Solo (Sparse)"))+
+  labs(x = "Density treatment", y = "Daily minimum DO (mg/L)", color = "Density treatment", shape = "Tide Height")+
+  scale_x_discrete(labels = c("D" = "Dense (Top and Bottom)","S" = "Sparse","C" = "Ambient (no oysters)")) +
+  geom_errorbar(aes(x= density, ymin=mean_min-sde_min, ymax=mean_min+sde_min, color = density, group = tide), width=.2)+
   theme_classic()+
   theme(axis.text = element_text(color="black",size = 18),      # Change x-axis title size
     axis.title = element_text(color="black",size = 20),

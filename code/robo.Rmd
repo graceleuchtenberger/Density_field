@@ -525,18 +525,29 @@ robo_maxmin  %>%
   ylim(60, 105)
 ```
 
+### Prez graph
+
 ```{r}
-robo_maxmin %>%
-  filter(day < "2025-08-29")%>%
-  filter(tide == "H")%>%
-  filter(top_bottom %in% c("1", "2"))%>%
+mean_robo_maxmin <- robo_maxmin %>%
+  group_by(density, tide, top_bottom) %>%
+  filter(day < "2025-08-29", day > "2025-06-24")%>%
+  summarise(mean_max = mean(daymax, na.rm = TRUE),
+            sde_max = sd(daymax, na.rm = TRUE)/sqrt(length(daymax)),
+            mean_min = mean(daymin, na.rm = TRUE),
+            sde_min = sd(daymin, na.rm = TRUE)/sqrt(length(daymin)),
+            .groups = 'drop')
+
+
+mean_robo_maxmin %>%
+  mutate(top_bottom = factor(top_bottom, levels = c("1", "2", "0"))) %>%
+  filter(top_bottom %in% c("1", "2", "0"))%>%
   ggplot()+
-  geom_boxplot(aes(x = top_bottom,y=(temp_max*9/5)+32, fill = top_bottom))+
-  scale_fill_manual(values = c("darkred", "orange"), labels = c("Top (Dense)", "Bottom (Dense)"))+
-  labs(x = "Bag position/Treatment", y = "Daily maximum oyster temperature (°F)", fill = "Bag position")+
-  scale_x_discrete(
-    labels = c("1" = "Bottom (Dense)", "2" = "Top (Dense)")
-  ) +
+  geom_point(aes(x = top_bottom,y=(mean_max*9/5)+32, color = top_bottom, shape = tide), size = 10)+
+  geom_line(aes(x = top_bottom,y=(mean_max*9/5)+32, linetype = tide), linewidth = 5)+
+  scale_color_manual(values = c("dodgerblue","tomato","black" ), labels = c("Dense (Bottom)","Dense (Top)", "Sparse"))+
+  labs(x = "Bag position/Treatment", y = "Daily maximum oyster temperature (°F)", color = "Bag position", shape = "Tide Height")+
+  scale_x_discrete(labels = c("0" = "Sparse","2" = "Dense (Top)","1" = "Dense (Bottom)")) +
+  geom_errorbar(aes(x= top_bottom, ymin=((mean_max-sde_max)*9/5)+32, ymax=((mean_max+sde_max)*9/5)+32, color = top_bottom, group = tide), width=.2)+
   theme_classic()+
   theme(axis.text = element_text(color="black",size = 18),      # Change x-axis title size
     axis.title = element_text(color="black",size = 20),
