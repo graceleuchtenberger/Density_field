@@ -9,8 +9,11 @@ date: "2025-07-10"
 library(ggplot2)
 library(tidyverse)
 library(readxl)
+install.packages("lme4")
 library(lme4)
+install.packages("glmmTMB")
 library(glmmTMB)
+install.packages("DHARMa")
 library(DHARMa)
 ```
 
@@ -19,7 +22,7 @@ library(DHARMa)
 ```{r}
 setwd("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field")
 
-survival <- read_xlsx("data/Survival/01162026.xlsx")
+survival <- read_xlsx("data/Survival/04192026.xlsx")
 treat_key <- read_xlsx("data/treatment_key.xlsx")
 
 colnames(survival) <- c("date", "bag_num", "dead", "init_live_ImageJ")
@@ -52,7 +55,7 @@ means_cumdead <- survival %>%
 
 ```{r}
 means_cumdead %>%
-  filter(tide == "L")%>%
+  filter(tide == "H")%>%
   ggplot(aes(x = date, y = mean_cumdead, color = top_bottom)) +
    geom_point(size=3, position=position_dodge(0.05)) +
   geom_line(linewidth = 2, linetype = "dashed")+
@@ -70,7 +73,7 @@ means_cumdead %>%
   geom_errorbar(aes(ymin=mean_cumdead-std_error, ymax=mean_cumdead+std_error), width=.2,
                  position=position_dodge(0.05))+
   theme_classic()+
-  ylim(0,35)+
+  ylim(0,40)+
   theme(axis.title.x = element_text(color="black",size = 20),      # Change x-axis title size
     axis.title.y = element_text(color="black",size = 20),      # Change y-axis title size
     axis.text.x = element_text(color="black",size = 18),       # Change x-axis text size
@@ -99,7 +102,7 @@ means_cumdead %>%
   geom_errorbar(aes(ymin=mean_cumdead-std_error, ymax=mean_cumdead+std_error), width=.2,
                  position=position_dodge(0.05))+
   theme_classic()+
-  ylim(0,35)+
+  ylim(0,40)+
   theme(axis.title.x = element_text(color="black",size = 20),      # Change x-axis title size
     axis.title.y = element_text(color="black",size = 20),      # Change y-axis title size
     axis.text.x = element_text(color="black",size = 18),       # Change x-axis text size
@@ -259,6 +262,7 @@ pairs(emm_tb2,adjust = "sidak")
 ```
 
 ## Models with full data
+I think I need to restructure this based on seasonality, isolating cumulative survival by season
 ### Model 1
 ```{r}
 model1 <-glmmTMB(cbind(alive_num, cumulative_deaths) ~  top_bottom+ tide + piling + rack + (1|days)+(1|bag_num),  data = survival, family = binomial()) #glmmTMB
@@ -267,7 +271,8 @@ testDispersion(model1)
 tst_simres <- simulateResiduals(fittedModel = model1) #DHARMa
 plot(tst_simres)
 
-
+install.packages("car")
+library(car)
 car::Anova(model1 , type = "III")
 
 ```
@@ -300,6 +305,7 @@ car::Anova(model4 , type = "III")
 
 ### Emmeans
 ```{r}
+install.packages("emmeans")
 library(emmeans)
 
 emm_by_tide <- emmeans(model4, ~ top_bottom | tide)
