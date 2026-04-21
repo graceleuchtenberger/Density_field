@@ -159,14 +159,14 @@ ggplot(current_lim)+
   #                position = "identity",
   #   alpha = 0.8,
   #   bins = 30)+
-  geom_histogram(aes(y=low_speed), fill = "#215f9a",position = "identity",
+  geom_histogram(aes(y=up_speed), fill = "#215f9a",position = "identity",
     alpha = 0.8,
     bins = 30)+
   theme_classic()+
   labs(x = "Frequency", y = "Flow speed (cm/s)", fill = "Tide height")+
   theme(axis.text = element_text(color="black",size = 18),      # Change x-axis title size
-    axis.title = element_text(color="black",size = 20),)
-  #geom_hline(yintercept = 1.56, color = "black")+
+    axis.title = element_text(color="black",size = 20),)+
+  geom_hline(yintercept = 1.55, color = "black")
   #geom_hline(yintercept = 0.8, color = "black")
   
 

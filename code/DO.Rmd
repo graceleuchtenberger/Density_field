@@ -126,6 +126,27 @@ do_current %>%
   geom_point()+
   theme_classic()
 
+
+do_current %>%
+  filter(up_Immersed == "Y") %>%
+  ggplot(aes(x=datetime, y=temp, colour = do_sensor))+
+  geom_point()+
+  theme_classic()
+
+do_current %>%
+  filter(up_Immersed == "Y",
+         tide == "L")%>%
+  ggplot(aes(x=temp, y=DO_adj, colour = as.factor(month(datetime))))+
+  geom_point()+
+  geom_path()+
+  facet_wrap(~ do_sensor+tide)+
+  theme_classic()
+
+do_current %>%
+  filter(up_Immersed == "Y")%>%
+  slice_max(temp, n = 1)
+
+
 ```
 
 ```{r}
