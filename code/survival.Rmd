@@ -22,7 +22,7 @@ library(DHARMa)
 ```{r}
 setwd("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field")
 
-survival <- read_xlsx("data/Survival/04192026.xlsx")
+survival <- read_xlsx("data/Survival/06132026.xlsx")
 treat_key <- read_xlsx("data/treatment_key.xlsx")
 
 colnames(survival) <- c("date", "bag_num", "dead", "init_live_ImageJ")
@@ -85,7 +85,7 @@ means_cumdead %>%
 ```{r}
 means_cumdead %>%
   filter(tide == "L")%>%
-  filter(top_bottom %in% c("2", "1"))%>%
+  filter(top_bottom %in% c("2", "1", "0"))%>%
   ggplot(aes(x = date, y = mean_cumdead, color = top_bottom)) +
    geom_point(size=3, position=position_dodge(0.05)) +
   geom_line(linewidth = 2, linetype = "dashed")+
@@ -96,13 +96,14 @@ means_cumdead %>%
   labs(color = "Bag position/treatment")+
   scale_color_manual(
     values = c(
+      "0"= "gold",
       "1" = "darkorange",
       "2" = "darkred"
     ), labels = c("Solo (Sparse)", "Bottom (Dense)", "Top (Dense)"))+
   geom_errorbar(aes(ymin=mean_cumdead-std_error, ymax=mean_cumdead+std_error), width=.2,
                  position=position_dodge(0.05))+
   theme_classic()+
-  ylim(0,40)+
+  #ylim(0,40)+
   theme(axis.title.x = element_text(color="black",size = 20),      # Change x-axis title size
     axis.title.y = element_text(color="black",size = 20),      # Change y-axis title size
     axis.text.x = element_text(color="black",size = 18),       # Change x-axis text size
