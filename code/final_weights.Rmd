@@ -1,0 +1,310 @@
+---
+title: "final_weights"
+output: html_document
+date: "2026-06-24"
+---
+
+# load packages
+```{r}
+library(pacman)
+pacman::p_load(ggplot2, tidyverse, readxl, glmmTMB, DHARMa, here)
+
+```
+
+# load data
+```{r}
+
+# oysters were dried at 100*C for 24-48 hrs
+weights <- read_csv(here("data/Growth/Sizes/oyster_mass_data_master_06172026.csv"))
+key <- read_xlsx(here("data/treatment_key.xlsx"))
+
+weights2 <- left_join(weights, key, join_by("Bag" == "bag_num"))
+weights2$top_bottom[is.na(weights2$top_bottom)] <- 0
+
+```
+
+# graph data
+```{r}
+
+weights2$top_bottom <- as.factor(weights2$top_bottom)
+
+ggplot(weights2, aes(x= top_bottom,y = Dry_Body_Mass_g, fill = tide))+
+  geom_boxplot()+
+  theme_classic()
+
+
+str(weights2)
+
+```
+
+# graph CI against each other
+```{r}
+weights2$dryshell <- weights2$Dry_Whole_Mass_g - weights2$Dry_Body_Mass_g
+
+# CI from Maria's paper Estuarine community response to longline spacing in intertidal oyster culture (Dumbauld 2023)
+
+weights2$CI <- weights2$Dry_Body_Mass_g/(weights2$Whole_Mass_g-weights2$dryshell)*100
+
+ggplot(weights2, aes(x= tide,y = CI, fill = top_bottom))+
+  geom_boxplot()+
+  theme_classic()
+```
+
+# Run Bayesian model 
+```{r}
+
+MCMC_chains <- 1
+MCMC_samples <- 100000
+MCMC_burnin <- 1000
+MCMC_thin <- 1
+
+posterior_plots <- 100
+
+basename <- "weights"
+
+figure_height <- 5
+
+options(width=128)
+set.seed(0)
+
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(ggplot2)
+  library(nimble)
+  library(nimbleExtra)
+})
+
+set_theme(theme_classic())
+
+
+weights3 <- weights2 |>
+  mutate(
+    tb_idx   = as.integer(factor(top_bottom)),
+    tide_idx = as.integer(factor(tide))
+  )
+
+# sparse = 1, bottom = 2, top = 3
+# high tide = 1, low tide = 2
+
+n_tb   <- n_distinct(weights3$tb_idx)
+n_tide <- n_distinct(weights3$tide_idx)
+
+
+message("===> MCMC code:")
+MCMC_code <- nimbleCode({
+  for (i in 1:n) {
+    CI[i] ~ dlnorm(meanlog = mu[i], sdlog = sigma)
+    mu[i] <- alpha[tb_idx[i], tide_idx[i]]
+  }
+  for (j in 1:n_tb) {
+    for (k in 1:n_tide) {
+      alpha[j, k] ~ dnorm(0, sd = 10)
+    }
+  }
+  sigma ~ dunif(0, 50)
+})
+
+MCMC_monitors <- c("alpha", "sigma")
+MCMC_constants <- list(n = nrow(weights3), n_tb = n_tb, n_tide = n_tide,
+                        tb_idx = weights3$tb_idx, tide_idx = weights3$tide_idx)
+MCMC_data <- list(CI = weights3$CI)
+MCMC_initial_values <- list(alpha = matrix(0, n_tb, n_tide), sigma = 1)
+
+mcmc_data <- nimbleMCMC(code=MCMC_code,
+                        constants=MCMC_constants,
+                        data=MCMC_data,
+                        inits=MCMC_initial_values,
+                        nchains=MCMC_chains,
+                        niter=MCMC_iterations(MCMC_samples, MCMC_burnin, MCMC_thin),
+                        nburnin=MCMC_burnin,
+                        thin=MCMC_thin,
+                        monitors=MCMC_monitors)
+message()
+
+
+```
+
+#Graphing model results (mean of logCI)
+```{r}
+# selecting posterior plots
+mcmc_samples <- mcmc_data |>
+  samples() 
+mcmc_samples_select <- mcmc_samples |>
+  slice_sample(n=posterior_plots) |>
+  print_dataframe("===> MCMC data: selected", output="str")
+
+# probability that difference is different from zero 
+message("Pr(diff between top and bottom low tide) < 0): ",100 * mcmc_samples |> probability((`alpha[3, 2]`-`alpha[2, 2]`) < 0), "%")
+message("Pr(diff between sparse and bottom low tide) < 0): ",100 * mcmc_samples |> probability((`alpha[2, 2]`-`alpha[1, 2]`) < 0), "%")
+message("Pr(diff between top and sparse low tide) < 0): ",100 * mcmc_samples |> probability((`alpha[3, 2]`-`alpha[1, 2]`) < 0), "%")
+message("Pr(diff between top and bottom hi tide) < 0): ",100 * mcmc_samples |> probability((`alpha[3, 1]`-`alpha[2, 1]`) < 0), "%")
+message("Pr(diff between sparse and bottom hi tide) < 0): ",100 * mcmc_samples |> probability((`alpha[2, 1]`-`alpha[1, 1]`) < 0), "%")
+message("Pr(diff between top and sparse hi tide) < 0): ",100 * mcmc_samples |> probability((`alpha[3, 1]`-`alpha[1, 1]`) < 0), "%")
+message()
+
+figure_ia1 <- ggplot(data=mcmc_samples,aes(x=.iteration,y=`alpha[3, 2]`)) +
+  theme(text=element_text(size=20)) +
+  ggtitle(title) +
+  labs(x="MCMC iteration",y= "alpha for high tide sparse") +
+  geom_step() +
+  #geom_hline(aes(yintercept=`alpha[1, 1]`), stat="mean_hline", linetype="dotted", color="white") +
+  geom_rug(stat="sample_mean", sides="l")
+
+figure_ia1
+
+figure_top_sparse_lo <- ggplot(data=mcmc_samples,aes(x=`alpha[3, 2]`-`alpha[1, 2]`)) +
+  theme(text=element_text(size=20)) +
+  ggtitle("Top/Sparse low tide") +
+  labs(x="mean of log(CI)",y="Density") +
+  geom_histogram(aes(y=after_stat(density)), fill="gray",bins=30) +
+  geom_vline(aes(xintercept=(`alpha[3, 2]`-`alpha[1, 2]`)), stat="mean_vline", linetype="dotted") +
+  geom_rug(stat="sample_mean", sides="b")
+
+figure_top_bottom_lo <- ggplot(data=mcmc_samples,aes(x=`alpha[3, 2]`-`alpha[2, 2]`)) +
+  theme(text=element_text(size=20)) +
+  ggtitle("Top/Bottom low tide") +
+  labs(x="mean of log(CI)",y="Density") +
+  geom_histogram(aes(y=after_stat(density)), fill="gray",bins=30) +
+  geom_vline(aes(xintercept=(`alpha[3, 2]`-`alpha[2, 2]`)), stat="mean_vline", linetype="dotted") +
+  geom_rug(stat="sample_mean", sides="b")
+
+figure_bottom_sparse_lo <- ggplot(data=mcmc_samples,aes(x=`alpha[2, 2]`-`alpha[1, 2]`)) +
+  theme(text=element_text(size=20)) +
+  ggtitle("Bottom/Sparse low tide") +
+  labs(x="mean of log(CI)",y="Density") +
+  geom_histogram(aes(y=after_stat(density)), fill="gray",bins=30) +
+  geom_vline(aes(xintercept=(`alpha[2, 2]`-`alpha[1, 2]`)), stat="mean_vline", linetype="dotted") +
+  geom_rug(stat="sample_mean", sides="b")
+
+figure_top_sparse_hi <- ggplot(data=mcmc_samples,aes(x=`alpha[3, 1]`-`alpha[1, 1]`)) +
+  theme(text=element_text(size=20)) +
+  ggtitle("Top/Sparse hi tide") +
+  labs(x="mean of log(CI)",y="Density") +
+  geom_histogram(aes(y=after_stat(density)), fill="gray",bins=30) +
+  geom_vline(aes(xintercept=(`alpha[3, 1]`-`alpha[1, 1]`)), stat="mean_vline", linetype="dotted") +
+  geom_rug(stat="sample_mean", sides="b")
+
+figure_top_bottom_hi <- ggplot(data=mcmc_samples,aes(x=`alpha[3, 1]`-`alpha[2, 1]`)) +
+  theme(text=element_text(size=20)) +
+  ggtitle("Top/Bottom hi tide") +
+  labs(x="mean of log(CI)",y="Density") +
+  geom_histogram(aes(y=after_stat(density)), fill="gray",bins=30) +
+  geom_vline(aes(xintercept=(`alpha[3, 1]`-`alpha[2, 1]`)), stat="mean_vline", linetype="dotted") +
+  geom_rug(stat="sample_mean", sides="b")
+
+figure_bottom_sparse_hi <- ggplot(data=mcmc_samples,aes(x=`alpha[2, 1]`-`alpha[1, 1]`)) +
+  theme(text=element_text(size=20)) +
+  ggtitle("Bottom/Sparse hi tide") +
+  labs(x="mean of log(CI)",y="Density") +
+  geom_histogram(aes(y=after_stat(density)), fill="gray",bins=30) +
+  geom_vline(aes(xintercept=(`alpha[2, 1]`-`alpha[1, 1]`)), stat="mean_vline", linetype="dotted") +
+  geom_rug(stat="sample_mean", sides="b")
+
+
+figure_top_sparse_hi
+
+
+list(tb_hi=figure_top_bottom_hi,ts_hi =figure_top_sparse_hi,bs_hi=figure_bottom_sparse_hi, tb_lo =figure_top_bottom_lo, ts_lo = figure_top_sparse_lo, bs_lo = figure_bottom_sparse_lo ) |>
+  print_figures(basename, output="device", height=figure_height)
+```
+
+# making medians of CI
+```{r}
+mcmc_samples_med <- mcmc_data |>
+  samples() |>
+  mutate(
+    med_CI_1_1 = exp(`alpha[1, 1]`),
+    med_CI_2_1 = exp(`alpha[2, 1]`),
+    med_CI_1_2 = exp(`alpha[1, 2]`),
+    med_CI_2_2 = exp(`alpha[2, 2]`),
+    med_CI_3_1 = exp(`alpha[3, 1]`),
+    med_CI_3_2 = exp(`alpha[3, 2]`),
+    tb_lo = med_CI_3_2-med_CI_2_2,
+    ts_low = med_CI_3_2-med_CI_1_2,
+    bs_low = med_CI_2_2-med_CI_1_2,
+    tb_hi = med_CI_3_1-med_CI_2_1,
+    ts_hi = med_CI_3_1-med_CI_1_1,
+    bs_hi = med_CI_2_1-med_CI_1_1,
+  )
+
+```
+
+# graphing medians of CI 
+```{r}
+figure_top_sparse_lo <- ggplot(data=mcmc_samples_med,aes(x=ts_low)) +
+  theme(text=element_text(size=20)) +
+  ggtitle("Top-Sparse low tide") +
+  labs(x="median of CI",y="Density") +
+  geom_histogram(aes(y=after_stat(density)), fill="gray",bins=30) +
+  geom_vline(aes(xintercept=ts_low), stat="mean_vline", linetype="dotted") +
+  geom_rug(stat="sample_mean", sides="b")
+
+figure_top_bottom_lo <- ggplot(data=mcmc_samples_med,aes(x=tb_lo)) +
+  theme(text=element_text(size=20)) +
+  ggtitle("Top-Bottom low tide") +
+  labs(x="median of CI",y="Density") +
+  geom_histogram(aes(y=after_stat(density)), fill="gray",bins=30) +
+  geom_vline(aes(xintercept=(tb_lo)), stat="mean_vline", linetype="dotted") +
+  geom_rug(stat="sample_mean", sides="b")
+
+figure_bottom_sparse_lo <- ggplot(data=mcmc_samples_med,aes(x=bs_low)) +
+  theme(text=element_text(size=20)) +
+  ggtitle("Bottom-Sparse low tide") +
+  labs(x="median of CI",y="Density") +
+  geom_histogram(aes(y=after_stat(density)), fill="gray",bins=30) +
+  geom_vline(aes(xintercept=(bs_low)), stat="mean_vline", linetype="dotted") +
+  geom_rug(stat="sample_mean", sides="b")
+
+figure_top_sparse_hi <- ggplot(data=mcmc_samples_med,aes(x=ts_hi)) +
+  theme(text=element_text(size=20)) +
+  ggtitle("Top-Sparse hi tide") +
+  labs(x="median of CI",y="Density") +
+  geom_histogram(aes(y=after_stat(density)), fill="gray",bins=30) +
+  geom_vline(aes(xintercept=(ts_hi)), stat="mean_vline", linetype="dotted") +
+  geom_rug(stat="sample_mean", sides="b")
+
+figure_top_bottom_hi <- ggplot(data=mcmc_samples_med,aes(x=tb_hi)) +
+  theme(text=element_text(size=20)) +
+  ggtitle("Top-Bottom hi tide") +
+  labs(x="median of CI",y="Density") +
+  geom_histogram(aes(y=after_stat(density)), fill="gray",bins=30) +
+  geom_vline(aes(xintercept=(tb_hi)), stat="mean_vline", linetype="dotted") +
+  geom_rug(stat="sample_mean", sides="b")
+
+figure_bottom_sparse_hi <- ggplot(data=mcmc_samples_med,aes(x=bs_hi)) +
+  theme(text=element_text(size=20)) +
+  ggtitle("Bottom-Sparse hi tide") +
+  labs(x="median of CI",y="Density") +
+  geom_histogram(aes(y=after_stat(density)), fill="gray",bins=30) +
+  geom_vline(aes(xintercept=(bs_hi)), stat="mean_vline", linetype="dotted") +
+  geom_rug(stat="sample_mean", sides="b")
+
+
+
+list(tb_hi=figure_top_bottom_hi,ts_hi =figure_top_sparse_hi,bs_hi=figure_bottom_sparse_hi, tb_lo =figure_top_bottom_lo, ts_low = figure_top_sparse_lo, bs_low = figure_bottom_sparse_lo ) |>
+  print_figures(basename, output="device", height=figure_height)
+
+
+
+
+```
+
+# Traditional OLS
+```{r}
+model1 <- glmmTMB(CI ~ tide*top_bottom +(1|Bag), data = weights2, family = lognormal())
+summary(model1)
+testDispersion(model1)
+tst_simres <- simulateResiduals(fittedModel = model1) #DHARMa
+plot(tst_simres)
+car::Anova(model1, type = "III")
+
+
+# Diagnostics look insane, lognormal is the right call
+# model2 <- glmmTMB(CI ~ tide*top_bottom +(1|Bag), data = weights2, family = Gamma(link = "logit"))
+# summary(model2)
+# testDispersion(model2)
+# tst_simres <- simulateResiduals(fittedModel = model2) #DHARMa
+# plot(tst_simres)
+
+```
+
