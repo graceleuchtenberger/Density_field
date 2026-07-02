@@ -28,7 +28,7 @@ weights2$top_bottom[is.na(weights2$top_bottom)] <- 0
 
 weights2$top_bottom <- as.factor(weights2$top_bottom)
 
-ggplot(weights2, aes(x= top_bottom,y = Dry_Body_Mass_g, fill = tide))+
+ggplot(weights2, aes(x= tide,y = Dry_Body_Mass_g, fill = top_bottom))+
   geom_boxplot()+
   theme_classic()
 
