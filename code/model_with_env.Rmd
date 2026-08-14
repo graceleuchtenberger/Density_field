@@ -1,0 +1,114 @@
+---
+title: "model_with_env"
+output: html_document
+date: "2026-08-14"
+---
+
+# Load libraries
+```{r}
+library(pacman)
+pacman::p_load(ggplot2, tidyverse, readxl, glmmTMB, DHARMa, here,nimble, nimbleExtra)
+
+```
+
+#
+
+```{r}
+dates <- as.Date(unique(survival$date))
+
+dates <- c(as.POSIXct("2025-06-27"), dates)
+
+dates <- as.Date(dates)
+
+do_2 <- do %>%
+  group_by(as.Date(datetime), bag) %>%
+  mutate(daily_min = min(DO_adj, na.rm = TRUE),
+         date = as.Date(datetime))
+
+do_2$interval <- cut(do_2$date, breaks = dates, labels = as.character(dates[-1]))
+
+do_3 <- do_2 %>%
+  filter(!is.na(interval)) %>%
+  group_by(bag, interval) %>%
+  summarise(avg_DO_min = mean(daily_min))
+
+survival$bag <- substr(survival$bag_num, 1, 2)
+
+do_3$interval<- as.Date(do_3$interval)
+survival$bag <- as.factor(survival$bag)
+do_3$bag <- as.factor(do_3$bag)
+
+survival_2 <- left_join(survival, do_3, join_by("date" == "interval", "bag" == "bag"))
+
+# way O2 data is structured can't parse out diff between top and bottom, just between dense and sparse
+
+
+
+
+
+# need to get average DO minimum for each date interval and bag 
+# append Avg DO minimum to survival, join by bag and date
+
+```
+
+
+```{r}
+
+# need to filter so that low tide ones stay when immersed, high tides stay when immersed
+do_current_2 <- do_current %>%
+  filter((tide== "H" & up_Immersed == "Y")| (tide== "L" & low_Immersed == "Y")) %>%
+  group_by(as.Date(datetime), bag) %>%
+  mutate(daily_min = min(DO_adj, na.rm = TRUE),
+         date = as.Date(datetime))
+
+do_current_2$interval <- cut(do_current_2$date, breaks = dates, labels = as.character(dates[-1]))
+
+do_current_3 <- do_current_2%>%
+  filter(!is.na(interval)) %>%
+  group_by(bag, interval) %>%
+  summarise(avg_DO_min = mean(daily_min))
+
+survival$bag <- substr(survival$bag_num, 1, 2)
+
+do_current_3$interval<- as.Date(do_current_3$interval)
+survival$bag <- as.factor(survival$bag)
+do_current_3$bag <- as.factor(do_current_3$bag)
+
+survival_2 <- left_join(survival, do_current_3, join_by("date" == "interval", "bag" == "bag"))
+```
+
+#adding in max temp
+```{r}
+robo_interp_max <- interp %>%
+  group_by(as.Date(datetime), bag, top_bottom) %>%
+  summarize(max_temp = max(temp, na.rm = TRUE))
+
+robo_interp_max_2 <- robo_interp_max %>%
+  group_by(as.Date(datetime), bag, top_bottom) %>%
+  mutate(daily_min = min(DO_adj, na.rm = TRUE),
+         date = as.Date(datetime))
+
+do_current_2$interval <- cut(do_current_2$date, breaks = dates, labels = as.character(dates[-1]))
+
+do_current_3 <- do_current_2%>%
+  filter(!is.na(interval)) %>%
+  group_by(bag, interval) %>%
+  summarise(avg_DO_min = mean(daily_min))
+
+survival$bag <- substr(survival$bag_num, 1, 2)
+
+do_current_3$interval<- as.Date(do_current_3$interval)
+survival$bag <- as.factor(survival$bag)
+do_current_3$bag <- as.factor(do_current_3$bag)
+
+survival_2 <- left_join(survival, do_current_3, join_by("date" == "interval", "bag" == "bag"))
+```
+
+
+
+
+
+
+
+
+

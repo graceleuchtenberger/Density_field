@@ -7,7 +7,7 @@ date: "2026-06-24"
 # load packages
 ```{r}
 library(pacman)
-pacman::p_load(ggplot2, tidyverse, readxl, glmmTMB, DHARMa, here)
+pacman::p_load(ggplot2, tidyverse, readxl, glmmTMB, DHARMa, here,nimble, nimbleExtra)
 
 ```
 
@@ -23,7 +23,61 @@ weights2$top_bottom[is.na(weights2$top_bottom)] <- 0
 
 ```
 
+# load final length measurements for weights
+
+```{r}
+files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Growth/Sizes/06142026_labphoto_sizes")
+
+final_lengths <- data.frame()
+
+for (file in files){
+  name <- gsub(".csv","", file)
+  size_file <- read_csv(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Growth/Sizes/06142026_labphoto_sizes/",file, sep = ""))
+  size_file$bag_num <- substr(name, start =1, stop = 4)
+  final_lengths <- rbind(final_lengths, size_file)
+}
+
+write_csv(final_lengths, "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Growth/Sizes/final_lablengths.csv")
+
+```
+
+
+
+```{r}
+
+lengths <- read_csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Growth/Sizes/final_lablengths.csv")
+
+weights3 <- left_join(weights2, lengths,join_by("Bag" == "bag_num", "Oyster" == "oyst_num"))
+
+weights3 <- weights3 %>%
+  select(-c(Area, Mean, Min, Max, Angle))
+
+
+```
+
+
+
+```{r}
+weights3$mass_over_length <- weights3$Dry_Body_Mass_g / weights3$Length
+weights3$top_bottom<- as.factor(weights3$top_bottom)
+weights3$tide<- as.factor(weights3$tide)
+
+```
+
+
 # graph data
+
+```{r}
+ggplot(weights3, aes(x= tide,y = mass_over_length, fill = top_bottom))+
+  geom_boxplot()+
+  theme_classic()
+
+```
+
+
+
+
+
 ```{r}
 
 weights2$top_bottom <- as.factor(weights2$top_bottom)
@@ -306,5 +360,173 @@ car::Anova(model1, type = "III")
 # tst_simres <- simulateResiduals(fittedModel = model2) #DHARMa
 # plot(tst_simres)
 
+```
+
+# shell weight comparison
+```{r}
+
+ggplot(weights2, aes(x= tide,y = dryshell, fill = top_bottom))+
+  geom_boxplot()+
+  theme_classic()
+
+```
+
+```{r}
+MCMC_chains <- 1
+MCMC_samples <- 10000000
+MCMC_burnin <- 1000
+MCMC_thin <- 10
+
+posterior_plots <- 100
+
+basename <- "weights"
+
+figure_height <- 5
+
+options(width=128)
+set.seed(0)
+
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(ggplot2)
+  library(nimble)
+  library(nimbleExtra)
+})
+
+set_theme(theme_classic())
+
+
+weights3 <- weights2 |>
+  mutate(
+    tb_idx   = as.integer(factor(top_bottom)),
+    tide_idx = as.integer(factor(tide))
+  )
+
+# sparse = 1, bottom = 2, top = 3
+# high tide = 1, low tide = 2
+
+n_tb   <- n_distinct(weights3$tb_idx)
+n_tide <- n_distinct(weights3$tide_idx)
+
+
+message("===> MCMC code:")
+MCMC_code <- nimbleCode({
+  for (i in 1:n) {
+    dryw[i] ~ dlnorm(meanlog = mu[i], sdlog = sigma)
+    mu[i] <- alpha[tb_idx[i], tide_idx[i]]
+  }
+  for (j in 1:n_tb) {
+    for (k in 1:n_tide) {
+      alpha[j, k] ~ dnorm(0, sd = 10)
+    }
+  }
+  sigma ~ dunif(0, 50)
+})
+
+MCMC_monitors <- c("alpha", "sigma")
+MCMC_constants <- list(n = nrow(weights3), n_tb = n_tb, n_tide = n_tide,
+                        tb_idx = weights3$tb_idx, tide_idx = weights3$tide_idx)
+MCMC_data <- list(CI = weights3$Dry_Body_Mass_g)
+MCMC_initial_values <- list(alpha = matrix(0, n_tb, n_tide), sigma = 1)
+
+mcmc_data <- nimbleMCMC(code=MCMC_code,
+                        constants=MCMC_constants,
+                        data=MCMC_data,
+                        inits=MCMC_initial_values,
+                        nchains=MCMC_chains,
+                        niter=MCMC_iterations(MCMC_samples, MCMC_burnin, MCMC_thin),
+                        nburnin=MCMC_burnin,
+                        thin=MCMC_thin,
+                        monitors=MCMC_monitors)
+message()
+
+
+
+
+```
+
+```{r}
+# making medians of dry weight
+mcmc_samples_med <- mcmc_data |>
+  samples() |>
+  mutate(
+    med_dryw_1_1 = exp(`alpha[1, 1]`),
+    med_dryw_2_1 = exp(`alpha[2, 1]`),
+    med_dryw_1_2 = exp(`alpha[1, 2]`),
+    med_dryw_2_2 = exp(`alpha[2, 2]`),
+    med_dryw_3_1 = exp(`alpha[3, 1]`),
+    med_dryw_3_2 = exp(`alpha[3, 2]`),
+    tb_lo = med_dryw_3_2-med_dryw_2_2,
+    ts_low = med_dryw_3_2-med_dryw_1_2,
+    bs_low = med_dryw_2_2-med_dryw_1_2,
+    tb_hi = med_dryw_3_1-med_dryw_2_1,
+    ts_hi = med_dryw_3_1-med_dryw_1_1,
+    bs_hi = med_dryw_2_1-med_dryw_1_1,
+  )
+
+```
+
+# graphing medians of CI 
+```{r}
+figure_top_sparse_lo <- ggplot(data=mcmc_samples_med,aes(x=ts_low)) +
+  theme(text=element_text(size=20)) +
+  ggtitle("Top-Sparse low tide") +
+  labs(x="median of CI",y="Density") +
+  geom_histogram(aes(y=after_stat(density)), fill="gray",bins=30) +
+  geom_vline(aes(xintercept=ts_low), stat="mean_vline", linetype="dotted") +
+  geom_rug(stat="sample_mean", sides="b")
+
+figure_top_bottom_lo <- ggplot(data=mcmc_samples_med,aes(x=tb_lo)) +
+  theme(text=element_text(size=20)) +
+  ggtitle("Top-Bottom low tide") +
+  labs(x="median of CI",y="Density") +
+  geom_histogram(aes(y=after_stat(density)), fill="gray",bins=30) +
+  geom_vline(aes(xintercept=(tb_lo)), stat="mean_vline", linetype="dotted") +
+  geom_rug(stat="sample_mean", sides="b")
+
+figure_bottom_sparse_lo <- ggplot(data=mcmc_samples_med,aes(x=bs_low)) +
+  theme(text=element_text(size=20)) +
+  ggtitle("Bottom-Sparse low tide") +
+  labs(x="median of CI",y="Density") +
+  geom_histogram(aes(y=after_stat(density)), fill="gray",bins=30) +
+  geom_vline(aes(xintercept=(bs_low)), stat="mean_vline", linetype="dotted") +
+  geom_rug(stat="sample_mean", sides="b")
+
+figure_top_sparse_hi <- ggplot(data=mcmc_samples_med,aes(x=ts_hi)) +
+  theme(text=element_text(size=20)) +
+  ggtitle("Top-Sparse hi tide") +
+  labs(x="median of CI",y="Density") +
+  geom_histogram(aes(y=after_stat(density)), fill="gray",bins=30) +
+  geom_vline(aes(xintercept=(ts_hi)), stat="mean_vline", linetype="dotted") +
+  geom_rug(stat="sample_mean", sides="b")
+
+figure_top_bottom_hi <- ggplot(data=mcmc_samples_med,aes(x=tb_hi)) +
+  theme(text=element_text(size=20)) +
+  ggtitle("Top-Bottom hi tide") +
+  labs(x="median of CI",y="Density") +
+  geom_histogram(aes(y=after_stat(density)), fill="gray",bins=30) +
+  geom_vline(aes(xintercept=(tb_hi)), stat="mean_vline", linetype="dotted") +
+  geom_rug(stat="sample_mean", sides="b")
+
+figure_bottom_sparse_hi <- ggplot(data=mcmc_samples_med,aes(x=bs_hi)) +
+  theme(text=element_text(size=20)) +
+  ggtitle("Bottom-Sparse hi tide") +
+  labs(x="median of CI",y="Density") +
+  geom_histogram(aes(y=after_stat(density)), fill="gray",bins=30) +
+  geom_vline(aes(xintercept=(bs_hi)), stat="mean_vline", linetype="dotted") +
+  geom_rug(stat="sample_mean", sides="b")
+
+
+
+list(tb_hi=figure_top_bottom_hi,ts_hi =figure_top_sparse_hi,bs_hi=figure_bottom_sparse_hi, tb_lo =figure_top_bottom_lo, ts_low = figure_top_sparse_lo, bs_low = figure_bottom_sparse_lo ) |>
+  print_figures(basename, output="device", height=figure_height)
+
+
+summary(mcmc_samples_med)
+mcmc_samples_select <- mcmc_samples |>
+  slice_sample(n=posterior_plots) |>
+  print_dataframe("===> MCMC data: selected", output="str")
+
+summary(mcmc_samples_select)
 ```
 

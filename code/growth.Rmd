@@ -12,10 +12,63 @@ library(readxl)
 library(lme4)
 library(DHARMa)
 library(glmmTMB)
+library(here)
 
 
 ```
-### Load and clean august data
+
+### Load and clean June data
+```{r}
+files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Growth/Sizes/06132026")
+
+Jun <- data.frame()
+
+for (file in files){
+  name <- gsub(".csv","", file)
+  size_file <- read_csv(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Growth/Sizes/06132026/",file, sep = ""))
+  size_file$bag_num <- substr(name, start =1, stop = 4)
+  size_file$pic_num <- substr(name, start =6, stop = 6)
+  Jun <- rbind(Jun, size_file)
+}
+
+Jun$date <- as.Date("2026-06-13")
+Jun$pic_num <- as.numeric(Jun$pic_num)
+
+Jun <- Jun[,7:10]
+
+Jun <- within(Jun, {oyster_num <- ave(bag_num, list(bag_num), FUN=seq_along)})
+Jun$oyster_num <- as.numeric(Jun$oyster_num)
+colnames(Jun) <- c("length", "bag_num", "pic_num", "date", "oyster_num")
+
+```
+
+### Load and clean april data
+```{r}
+files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Growth/Sizes/04192026")
+
+Apr <- data.frame()
+
+for (file in files){
+  name <- gsub(".csv","", file)
+  size_file <- read_csv(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Growth/Sizes/04192026/",file, sep = ""))
+  size_file$bag_num <- substr(name, start =1, stop = 4)
+  size_file$pic_num <- substr(name, start =6, stop = 6)
+  Apr <- rbind(Apr, size_file)
+}
+
+Apr$date <- as.Date("2026-04-19")
+Apr$pic_num <- as.numeric(Apr$pic_num)
+
+Apr <- Apr[,7:10]
+
+Apr <- within(Apr, {oyster_num <- ave(bag_num, list(bag_num), FUN=seq_along)})
+Apr$oyster_num <- as.numeric(Apr$oyster_num)
+colnames(Apr) <- c("length", "bag_num", "pic_num", "date", "oyster_num")
+
+```
+
+# load august data
+
 ```{r}
 files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Growth/Sizes/08212025")
 
@@ -39,16 +92,15 @@ Aug$oyster_num <- as.numeric(Aug$oyster_num)
 colnames(Aug) <- c("length", "bag_num", "pic_num", "date", "oyster_num")
 
 ```
-
 ### Load data
 ```{r}
 setwd("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field")
 June <- read_xlsx("data/Growth/Sizes/06272025.xlsx")
 July <- read_xlsx("data/Growth/Sizes/07232025.xlsx")
 sizes <- bind_rows(June, July)
-treat_key <- read_xlsx("data/treatment_key.xlsx")
+treat_key <- read_xlsx(here("data/treatment_key.xlsx"))
 colnames(sizes) <- c("date", "bag_num", "pic_num", "oyster_num", "length")
-sizes <- bind_rows(sizes, Aug)
+sizes <- bind_rows(sizes, Aug, Apr, Jun)
 sizes <- left_join(sizes, treat_key, by = "bag_num")
 sizes$top_bottom <- as.factor(sizes$top_bottom)
 ```
@@ -171,8 +223,9 @@ mean_lengths$days <- as.numeric(mean_lengths$date - min(mean_lengths$date))
 mean_lengths$days <- mean_lengths$days/86400
 mean_lengths$days <- mean_lengths$days + 16
 
+hist(sqrt(mean_lengths$perc_change_l))
 
-model1 <-glmmTMB(perc_change_l ~  tide *top_bottom+days+ (1|bag_num),data = mean_lengths, family = tweedie()) #glmmTMB
+model1 <-glmmTMB(perc_change_l ~  tide*top_bottom*days+(1|bag_num),data = mean_lengths, family = gaussian()) #glmmTMB
 summary(model1)
 car::Anova(model1,type = "III")
 car::qqPlot(residuals(model1))
@@ -186,9 +239,11 @@ plot(tst_simres)
 hist(mean_lengths$perc_change_l)
 hist(sqrt(mean_lengths$perc_change_l))
 ```
+
+
 ```{r}
 
-model2 <-glmmTMB(perc_change_l ~  tide *top_bottom*days+ (1|bag_num),data = mean_lengths, family = tweedie()) #glmmTMB
+model2 <-glmmTMB(perc_change_l ~  tide *top_bottom+days+ (1|bag_num),data = mean_lengths, family = gaussian()) #glmmTMB
 summary(model2)
 car::Anova(model2,type = "III")
 car::qqPlot(residuals(model2))
@@ -201,7 +256,7 @@ plot(tst_simres)
 ### Winning model (lowest AIC)
 ```{r}
 
-model3 <-glmmTMB(perc_change_l ~  tide +top_bottom+days+ (1|bag_num),data = mean_lengths, family = tweedie()) #glmmTMB
+model3 <-glmmTMB(perc_change_l ~  tide +top_bottom+days+ (1|bag_num),data = mean_lengths, family = gaussian()) #glmmTMB
 summary(model3)
 car::Anova(model3,type = "III")
 car::qqPlot(residuals(model3))
@@ -214,7 +269,7 @@ plot(tst_simres)
 ### Second best model
 ```{r}
 
-model4 <-glmmTMB(perc_change_l ~  tide +top_bottom*days+ (1|bag_num),data = mean_lengths, family = tweedie()) #glmmTMB
+model4 <-glmmTMB(perc_change_l ~  tide +top_bottom*days+ (1|bag_num),data = mean_lengths, family = gaussian()) #glmmTMB
 summary(model4)
 car::Anova(model4,type = "III")
 car::qqPlot(residuals(model4))
@@ -223,3 +278,24 @@ testDispersion(model4)
 tst_simres <- simulateResiduals(fittedModel = model4) #DHARMa
 plot(tst_simres)
 ```
+
+
+```{r}
++(1|days)
+```
+
+
+```{r}
+AIC(model1, model2, model3, model4)
+```
+
+
+
+
+```{r}
+library(emmeans)
+
+emm_by_tide <- emmeans(model1, ~ top_bottom | tide)
+contrast(emm_by_tide, method = "pairwise")
+```
+
