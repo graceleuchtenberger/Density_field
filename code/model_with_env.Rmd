@@ -7,11 +7,11 @@ date: "2026-08-14"
 # Load libraries
 ```{r}
 library(pacman)
-pacman::p_load(ggplot2, tidyverse, readxl, glmmTMB, DHARMa, here,nimble, nimbleExtra)
+pacman::p_load(ggplot2, tidyverse, readxl, glmmTMB, DHARMa, here,nimble, nimbleExtra,survival, purrr, tibble, lmerTest, coxme)
 
 ```
 
-#
+#load in dates properly
 
 ```{r}
 dates <- as.Date(unique(survival$date))
@@ -20,35 +20,6 @@ dates <- c(as.POSIXct("2025-06-27"), dates)
 
 dates <- as.Date(dates)
 
-do_2 <- do %>%
-  group_by(as.Date(datetime), bag) %>%
-  mutate(daily_min = min(DO_adj, na.rm = TRUE),
-         date = as.Date(datetime))
-
-do_2$interval <- cut(do_2$date, breaks = dates, labels = as.character(dates[-1]))
-
-do_3 <- do_2 %>%
-  filter(!is.na(interval)) %>%
-  group_by(bag, interval) %>%
-  summarise(avg_DO_min = mean(daily_min))
-
-survival$bag <- substr(survival$bag_num, 1, 2)
-
-do_3$interval<- as.Date(do_3$interval)
-survival$bag <- as.factor(survival$bag)
-do_3$bag <- as.factor(do_3$bag)
-
-survival_2 <- left_join(survival, do_3, join_by("date" == "interval", "bag" == "bag"))
-
-# way O2 data is structured can't parse out diff between top and bottom, just between dense and sparse
-
-
-
-
-
-# need to get average DO minimum for each date interval and bag 
-# append Avg DO minimum to survival, join by bag and date
-
 ```
 
 
@@ -56,8 +27,8 @@ survival_2 <- left_join(survival, do_3, join_by("date" == "interval", "bag" == "
 
 # need to filter so that low tide ones stay when immersed, high tides stay when immersed
 do_current_2 <- do_current %>%
-  filter((tide== "H" & up_Immersed == "Y")| (tide== "L" & low_Immersed == "Y")) %>%
-  group_by(as.Date(datetime), bag) %>%
+  filter((tide.x== "H" & up_Immersed == "Y")| (tide.x== "L" & low_Immersed == "Y")) %>%
+  group_by(as.Date(datetime), bag.x) %>%
   mutate(daily_min = min(DO_adj, na.rm = TRUE),
          date = as.Date(datetime))
 
@@ -65,14 +36,14 @@ do_current_2$interval <- cut(do_current_2$date, breaks = dates, labels = as.char
 
 do_current_3 <- do_current_2%>%
   filter(!is.na(interval)) %>%
-  group_by(bag, interval) %>%
+  group_by(bag.x, interval) %>%
   summarise(avg_DO_min = mean(daily_min))
 
 survival$bag <- substr(survival$bag_num, 1, 2)
 
 do_current_3$interval<- as.Date(do_current_3$interval)
 survival$bag <- as.factor(survival$bag)
-do_current_3$bag <- as.factor(do_current_3$bag)
+do_current_3$bag <- as.factor(do_current_3$bag.x)
 
 survival_2 <- left_join(survival, do_current_3, join_by("date" == "interval", "bag" == "bag"))
 ```
@@ -83,32 +54,609 @@ robo_interp_max <- interp %>%
   group_by(as.Date(datetime), bag, top_bottom) %>%
   summarize(max_temp = max(temp, na.rm = TRUE))
 
-robo_interp_max_2 <- robo_interp_max %>%
-  group_by(as.Date(datetime), bag, top_bottom) %>%
-  mutate(daily_min = min(DO_adj, na.rm = TRUE),
-         date = as.Date(datetime))
+robo_interp_max$date <- robo_interp_max$`as.Date(datetime)`
 
-do_current_2$interval <- cut(do_current_2$date, breaks = dates, labels = as.character(dates[-1]))
+robo_interp_max$interval <- cut(robo_interp_max$date, breaks = dates, labels = as.character(dates[-1]))
 
-do_current_3 <- do_current_2%>%
+robo_interp_max_2 <- robo_interp_max%>%
   filter(!is.na(interval)) %>%
-  group_by(bag, interval) %>%
-  summarise(avg_DO_min = mean(daily_min))
+  group_by(bag, top_bottom, interval) %>%
+  summarise(avg_temp_max = mean(max_temp))
 
-survival$bag <- substr(survival$bag_num, 1, 2)
 
-do_current_3$interval<- as.Date(do_current_3$interval)
-survival$bag <- as.factor(survival$bag)
-do_current_3$bag <- as.factor(do_current_3$bag)
+robo_interp_max_2$interval<- as.Date(robo_interp_max_2$interval)
+robo_interp_max_2$bag <- as.factor(robo_interp_max_2$bag)
 
-survival_2 <- left_join(survival, do_current_3, join_by("date" == "interval", "bag" == "bag"))
+survival_3 <- left_join(survival_2, robo_interp_max_2, join_by("date" == "interval", "bag" == "bag", "top_bottom" == "top_bottom"))
 ```
 
 
+#is daily min DO affected by density 
+```{r}
+survival_env_summ <- survival_3 %>%
+  filter(date <= "2025-09-15")
+
+survival_env_summ$density <- as.factor(survival_env_summ$density)
+survival_env_summ$tide<- as.factor(survival_env_summ$tide)
+
+plot(survival_env_summ$density,survival_env_summ$avg_DO_min)
+plot(survival_env_summ$tide,survival_env_summ$avg_DO_min)
+plot(survival_env_summ$bag,survival_env_summ$avg_DO_min)
+
+
+# need to find distribution that fits data better 
+DO_model1 <- glmmTMB(avg_DO_min ~ density*tide + piling + rack + (1|bag), data = survival_env_summ)
+summary(DO_model1)
+testDispersion(DO_model1)
+tst_simres <- simulateResiduals(fittedModel = DO_model1) #DHARMa
+plot(tst_simres)
+
+
+DO_model2 <- glmmTMB(avg_DO_min ~ density*tide + piling + (1|bag), data = survival_env_summ)
+summary(DO_model2)
+testDispersion(DO_model2)
+tst_simres <- simulateResiduals(fittedModel = DO_model2) #DHARMa
+plot(tst_simres)
+car::qqPlot(residuals(DO_model2 ))
+
+DO_model3 <- glmmTMB(avg_DO_min ~ density*tide + (1|bag), data = survival_env_summ)
+summary(DO_model3 )
+testDispersion(DO_model3)
+tst_simres <- simulateResiduals(fittedModel = DO_model3 ) #DHARMa
+plot(tst_simres)
+
+## winning model as of 8/18/26
+DO_model4 <- glmmTMB(avg_DO_min ~ tide + (1|bag), data = survival_env_summ)
+summary(DO_model4 )
+testDispersion(DO_model4)
+tst_simres <- simulateResiduals(fittedModel = DO_model4 ) #DHARMa
+plot(tst_simres)
+
+```
+
+# is summer max temp affected by density (yes)
+```{r}
+temp_model1 <- glmmTMB(avg_temp_max ~ top_bottom*tide + piling + rack + (1|bag), data = survival_env_summ)
+summary(temp_model1)
+testDispersion(temp_model1)
+tst_simres <- simulateResiduals(fittedModel = temp_model1) #DHARMa
+plot(tst_simres)
+
+## winning model
+temp_model2 <- glmmTMB(avg_temp_max ~ top_bottom*tide + piling + (1|bag), data = survival_env_summ)
+summary(temp_model2)
+testDispersion(temp_model2)
+tst_simres <- simulateResiduals(fittedModel = temp_model2) #DHARMa
+plot(tst_simres)
+car::qqPlot(residuals(temp_model2 ))
+
+temp_model3 <- glmmTMB(avg_temp_max ~ top_bottom*tide + (1|bag), data = survival_env_summ)
+summary(temp_model3 )
+testDispersion(temp_model3)
+tst_simres <- simulateResiduals(fittedModel = temp_model3 ) #DHARMa
+plot(tst_simres)
+
+temp_model4 <- glmmTMB(avg_temp_max ~ tide + (1|bag), data = survival_env_summ)
+summary(temp_model4 )
+testDispersion(temp_model4)
+tst_simres <- simulateResiduals(fittedModel = temp_model4 ) #DHARMa
+plot(tst_simres)
+
+```
+
+```{r}
+survival_env_summ <- survival_env_summ %>%
+  group_by(bag_num, top_bottom) %>%
+  arrange(date)%>%
+  mutate(cumulative_deaths = cumsum(dead)) %>%
+  ungroup()
+
+
+survival_env_summ  <- survival_env_summ  %>%
+  group_by(bag_num, top_bottom) %>%
+  arrange(date)%>%
+  mutate(alive_num = init_live_ImageJ-cumulative_deaths) %>%
+  ungroup()
+```
+
+#does temp affect survival
+```{r}
+
+
+surv_env_model1 <- glmmTMB(cbind(alive_num, dead) ~ avg_temp_max + (1|date)+ (1|bag), data = survival_env_summ, family = binomial())
+summary(surv_env_model1)
+testDispersion(surv_env_model1)
+tst_simres <- simulateResiduals(fittedModel = surv_env_model1) #DHARMa
+plot(tst_simres)
+
+
+```
+
+```{r}
+survival_3 <- survival_3 %>%
+  group_by(bag_num, top_bottom) %>%
+  arrange(date)%>%
+  mutate(cumulative_deaths = cumsum(dead)) %>%
+  ungroup()
+
+
+survival_3  <- survival_3  %>%
+  group_by(bag_num, top_bottom) %>%
+  arrange(date)%>%
+  mutate(alive_num = init_live_ImageJ-cumulative_deaths) %>%
+  ungroup()
+```
+
+```{r}
+
+
+surv_env_model2 <- glmmTMB(cbind(alive_num, cumulative_deaths) ~ avg_temp_max + (1|date)+ (1|bag), data = survival_3, family = binomial())
+summary(surv_env_model2)
+testDispersion(surv_env_model2)
+tst_simres <- simulateResiduals(fittedModel = surv_env_model2) #DHARMa
+plot(tst_simres)
+
+```
+
+
+# cox modeling
+```{r}
+## ============================================================
+## Reformatting interval-censored, grouped bag-level survival
+## counts into person-period (counting process) format for coxph()
+## ============================================================
+##
+## ASSUMPTIONS YOU NEED TO CHECK / EDIT:
+## 1. `date` is the CHECK date (end of an interval), and each bag_num
+##    has multiple rows, one per check date, in chronological order.
+## 2. Deployment / study-start date. The code below uses each bag's
+##    *first observed date* as day 0. If oysters were actually
+##    deployed earlier than the first check (i.e. the first `dead`
+##    count already reflects a real elapsed interval), replace
+##    `min(date)` below with your true deployment date.
+## 3. `alive_num` = number alive at the END of that row's interval,
+##    `dead` = number that died DURING that row's interval,
+##    `init_live_ImageJ` = number alive at the very start (bag deployment).
+## 4. Bag-level covariates (density, tide, piling, rack, top_bottom)
+##    are constant across a bag's rows; avg_DO_min / avg_temp_max
+##    vary by interval (time-varying).
+# --------------------------------------------------------------
+# STEP 1: expand each bag's interval counts into person-period rows
+# --------------------------------------------------------------
+expand_to_person_period <- function(df) {
+
+  df <- df %>% arrange(bag_num, date)
+  bags <- split(df, df$bag_num)
+
+  out <- map_dfr(bags, function(b) {
+    b <- b %>% arrange(date)
+
+    n_init    <- b$init_live_ImageJ[1]
+    alive_ids <- seq_len(n_init)           # pseudo-individual IDs, 1..n_init
+
+    # IMPORTANT: all bags were deployed on the SAME calendar date, which
+    # is ~2 weeks BEFORE the survival dataset's first recorded check.
+    # Day 0 must be the true deployment date, not the first observed
+    # date -- otherwise the ~2 weeks of at-risk time (and any deaths
+    # that occurred in it, reflected in the first row's `dead` count)
+    # get silently dropped, inflating the apparent hazard in interval 1.
+    ref_date <- as.Date("2025-06-24")   # deployment date, confirmed by user
+
+    # t = 0 is the deployment date itself. The loop below computes each
+    # row's t_stop from ref_date, so the FIRST interval naturally runs
+    # from 0 (deployment) to however many days elapsed to the first
+    # checkpoint -- t_prev must start at 0, not at the first checkpoint's
+    # elapsed time (setting it to the latter collapses interval 1 to
+    # zero length, which is why deaths were all landing on the
+    # checkpoint day: runif(min=x, max=x) just returns x).
+    t_prev <- 0
+
+    first_gap <- as.numeric(difftime(min(b$date), ref_date, units = "days"))
+    if (first_gap < 0) {
+      stop("First observed date is before the deployment date -- check ref_date.")
+    }
+
+    rows <- list()
+
+    for (i in seq_len(nrow(b))) {
+
+      t_start <- t_prev
+      t_stop  <- as.numeric(difftime(b$date[i], ref_date, units = "days"))
+      n_dead  <- b$dead[i]
+
+      # guard against count mismatches
+      n_dead <- min(n_dead, length(alive_ids))
+
+      dead_ids    <- if (n_dead > 0) alive_ids[seq_len(n_dead)] else integer(0)
+      survive_ids <- setdiff(alive_ids, dead_ids)
+
+      make_rows <- function(ids, event, stop_time) {
+        if (length(ids) == 0) return(NULL)
+        tibble(
+          bag_num      = b$bag_num[i],
+          id           = ids,
+          tstart       = t_start,
+          tstop        = stop_time,
+          event        = event,
+          avg_DO_min   = b$avg_DO_min[i],
+          avg_temp_max = b$avg_temp_max[i],
+          density      = b$density[i],
+          tide         = b$tide[i],
+          piling       = b$piling[i],
+          rack         = b$rack[i],
+          top_bottom   = b$top_bottom[i]
+        )
+      }
+
+      # --- interval-censoring imputation (per Pernet-style approach) ---
+      # Instead of pinning deaths to the END of the interval, randomly
+      # assign each death a day uniformly within (t_start, t_stop].
+      # This avoids artificially stacking all deaths at interval
+      # boundaries, which can bias hazard estimates and residual checks.
+      if (length(dead_ids) > 0) {
+        death_times <- runif(length(dead_ids), min = t_start, max = t_stop)
+        # guard against a random draw landing exactly on t_start
+        death_times <- pmax(death_times, t_start + 1e-6)
+        for (k in seq_along(dead_ids)) {
+          rows[[length(rows) + 1]] <- make_rows(dead_ids[k], 1, death_times[k])
+        }
+      }
+
+      # survivors: censored (event = 0) if this is the bag's last row,
+      # otherwise they simply carry forward into the next interval
+      # (still get an event = 0 row for THIS interval, since covariates
+      # were in effect during it, running to the full interval end)
+      rows[[length(rows) + 1]] <- make_rows(survive_ids, 0, t_stop)
+
+      alive_ids <- survive_ids
+      t_prev    <- t_stop
+    }
+
+    bind_rows(rows)
+  })
+
+  out %>%
+    mutate(subject_id = paste(bag_num, id, sep = "_")) %>%
+    filter(tstop > tstart)   # drop any zero-length intervals
+}
+
+survival_long <- expand_to_person_period(survival_3)
+survival_long_summer <- survival_long %>%
+  filter(tstop <= 83)
+
+survival_long_summer2 <- survival_long_summer %>%
+  mutate(tide = case_when(
+    tide == "H"  ~ 0.826,
+    tide == "L" ~ 0)) %>%
+  mutate(density = case_when(
+    density == "D" ~ 300,
+    density == "S" ~ 150
+  ))
+
+
+# --------------------------------------------------------------
+# STEP 2: fit the Cox model (counting-process form, time-dependent
+# covariates) -- this is the "model 3" structure in the paper:
+# left-truncated, right-censored Cox with time-varying environmental
+# covariates, oysters within a bag treated as a cluster for robust SEs.
+# --------------------------------------------------------------
+# NOTE: set.seed() before expand_to_person_period() if you want the
+# random death-day imputation to be reproducible. Since the imputation
+# is stochastic, it's good practice to refit across several random
+# draws (e.g. 10-20) and check that coefficient estimates/p-values are
+# stable -- this is effectively single imputation vs. the "assign once
+# and check robustness" approach many interval-censored studies use.
+
+
+
+cox_model3 <- coxph(
+  Surv(tstart, tstop, event) ~ avg_DO_min + avg_temp_max +
+    density + tide + piling + rack + top_bottom + cluster(bag_num),
+  data    = survival_long_summer2,
+  ties    = "efron"
+)
+summary(cox_model3)
+#
+# ## Univariate screening first (as in the paper), THEN build the
+# ## multivariate model from significant terms via stepwise selection:
+cox_univ_temp <- coxph(Surv(tstart, tstop, event) ~ avg_temp_max +
+                          cluster(bag_num), data = survival_long_summer2)
+summary(cox_univ_temp)
+cox_univ_DO   <- coxph(Surv(tstart, tstop, event) ~ avg_DO_min +
+                          cluster(bag_num), data = survival_long_summer2)
+summary(cox_univ_DO)
+# # ... etc. for each candidate covariate, then combine the significant
+# # ones into cox_model3 above (drop non-significant terms one at a time,
+# # e.g. via step() -- note step() ignores cluster(); refit with
+# # cluster() once the final term set is chosen).
+#
+# ## Check the proportional hazards assumption (paper used Martingale
+# ## residuals; cox.zph is the standard equivalent using scaled
+# ## Schoenfeld residuals, and is the modern default check in R):
+ph_check <- cox.zph(cox_model3)
+print(ph_check)
+plot(ph_check)   # look for trends in residuals vs. time -> PH violation
+#
+# ## If PH is violated for a factor (e.g. an age-class or origin
+# ## variable), stratify by it instead of including it as a covariate
+# ## (this lets the baseline hazard differ by stratum while still
+# ## sharing the other coefficients):
+# # cox_model3_strat <- coxph(
+# #   Surv(tstart, tstop, event) ~ avg_DO_min + avg_temp_max +
+# #     density + tide + piling + rack + strata(top_bottom) +
+# #     cluster(bag_num),
+# #   data = survival_long
+# # )
+
+```
+
+# path analysis 
+```{r}
+
+# ================================================================
+# STEP 4: FULL PATH ANALYSIS (piecewise / local-estimation SEM)
+#
+# DAG being tested:
+#   density -> DO, density -> temp, density -> survival (direct)
+#   tide    -> DO, tide    -> temp
+#   piling  -> temp
+#   rack    -> DO
+#   DO -> survival, temp -> survival
+#
+# Cox models with time-varying covariates aren't supported by lavaan
+# or most all-in-one SEM engines, so this uses PIECEWISE estimation
+# (Shipley's approach): fit one regression per node, using only that
+# node's direct parents as predictors, then combine coefficients for
+# indirect/total effects and test omitted edges via d-separation.
+#
+# NOTE: the `piecewiseSEM` package automates this (and gives a Fisher's
+# C global goodness-of-fit test), but its coxph support is inconsistent
+# across versions -- check `?piecewiseSEM::psem` for your version before
+# relying on it. The manual version below always works and makes every
+# step explicit, which is worth doing at least once regardless.
+# ================================================================
+ 
+
+bag_interval <- survival_3 %>%
+  distinct(bag_num, date, density, avg_temp_max, avg_DO_min, tide, piling, rack, top_bottom)
+
+bag_interval_summ <- bag_interval %>%
+  filter(date <= "2025-09-15")
+
+str(bag_interval_summ$date)
+
+bag_interval_summ <- bag_interval_summ %>%
+  mutate(tide = case_when(
+    tide == "H"  ~ 0.826,
+    tide == "L" ~ 0)) %>%
+  mutate(density = case_when(
+    density == "D" ~ 300,
+    density == "S" ~ 150
+  ))
+
+
+
+bag_interval_summ$date <- as.Date(bag_interval_summ$date )
+## --- local model 1: DO's parents are density, tide, rack ---
+DO_mod <- lmer(avg_DO_min ~ density + tide + rack +
+                  (1 | date) + (1 | bag_num),
+                data = bag_interval_summ)
+summary(DO_mod)
+ 
+## --- local model 2: temp's parents are density, tide, piling ---
+temp_mod <- lmer(avg_temp_max ~ density + tide + piling +
+                    (1 | date) + (1 | bag_num),
+                  data = bag_interval_summ)
+summary(temp_mod)
+
+## --- local model 3: survival's parents are density (direct), DO, temp ---
+## tide/piling/rack deliberately excluded -- your DAG says they act
+## ONLY through DO/temp, not directly on survival
+
+
+cox_path <- coxph(
+  Surv(tstart, tstop, event) ~ density + avg_DO_min + avg_temp_max +
+    cluster(bag_num),
+  data = survival_long_summer2
+)
+summary(cox_path)
+
+## --- d-separation checks: are tide/piling/rack REALLY only acting
+## through DO/temp, or do they have a leftover direct effect? ---
+## Add each back into the survival model one at a time; if it's
+## non-significant, that supports the "no direct edge" assumption.
+cox_dsep_tide <- coxph(
+  Surv(tstart, tstop, event) ~ density + avg_DO_min + avg_temp_max +
+    tide + cluster(bag_num),
+  data = survival_long_summer2
+)
+summary(cox_dsep_tide)   # check p-value on `tide`
+
+cox_dsep_piling <- update(cox_path, . ~ . + piling)
+summary(cox_dsep_piling)  # check p-value on `piling`
+#
+cox_dsep_rack <- update(cox_path, . ~ . + rack)
+summary(cox_dsep_rack)    # check p-value on `rack`
+## If any of these come in significant, your DAG is missing an edge --
+## add it (e.g. piling -> survival directly, perhaps wave/physical
+## exposure rather than a temperature-mediated effect) and refit.
+ 
+## --- ASSEMBLING DIRECT/INDRECT TOTAL EFFECTS  ---
+## Standardizing continuous predictors first makes path coefficients
+## comparable in magnitude (otherwise a 1-unit change means something
+## different for density vs. temp vs. DO). Do this on a COPY of the
+## data used for the local models, not on survival_long time columns.
+#
+
+# compute standardization constants ONCE, from bag-interval-level data
+# (not separately per table -- survival_long has duplicated rows per
+# bag-interval, which would shift the mean/sd used there)
+dens_mean <- mean(bag_interval_summ$density); dens_sd <- sd(bag_interval_summ$density)
+tide_mean <- mean(bag_interval_summ$tide);    tide_sd <- sd(bag_interval_summ$tide)
+DO_mean   <- mean(bag_interval_summ$avg_DO_min);   DO_sd   <- sd(bag_interval_summ$avg_DO_min)
+temp_mean <- mean(bag_interval_summ$avg_temp_max, na.rm = TRUE); temp_sd <- sd(bag_interval_summ$avg_temp_max, na.rm = TRUE)
+
+# mutating and standardizing the environmental data
+bag_interval_z <- bag_interval_summ %>%
+  mutate(
+    density = (density - dens_mean) / dens_sd,
+    tide    = (tide - tide_mean) / tide_sd,
+    position = factor(top_bottom,
+                            levels = c(0, 1, 2),
+                            labels = c("single", "dense_bottom", "dense_top")),
+                      bag = sub("-.*", "", bag_num))
+  
+
+
+DO_interval_z <- bag_interval_z %>%
+  distinct(bag, date, avg_DO_min, density, tide, rack)
+
+# mutating and standardizing survival data
+survival_long_z <- survival_long_summer2 %>%
+  mutate(
+    density      = (density - dens_mean) / dens_sd,
+    tide         = (tide - tide_mean) / tide_sd,
+    avg_DO_min   = (avg_DO_min - DO_mean) / DO_sd,
+    avg_temp_max = (avg_temp_max - temp_mean) / temp_sd,
+    bag = sub("-.*", "", bag_num),
+    position = factor(top_bottom,
+                            levels = c(0, 1, 2),
+                            labels = c("single", "dense_bottom", "dense_top"))
+  )
+
+# DO model
+DO_mod <- lmerTest::lmer(avg_DO_min ~ density + tide + rack + (1 | date) + (1 | bag), data = DO_interval_z)
+summary(DO_mod, ddf = "Kenward-Roger")
+
+# Temp model
+temp_mod <- lmerTest::lmer(avg_temp_max ~ position + tide + piling + (1 | date) + (1 | bag), data = bag_interval_z)
+summary(temp_mod, ddf = "Kenward-Roger")
+library(emmeans)
+emmeans(temp_mod, pairwise ~ position, adjust = "tukey")
+
+# Cox model 
+cox_path <- coxph(
+  Surv(tstart, tstop, event) ~ avg_DO_min + avg_temp_max + cluster(bag),
+  data = survival_long_z
+)
+summary(cox_path)
+library(car)
+vif(cox_path)
+
+survival_long_z %>%
+  filter(is.na(avg_DO_min) | is.na(avg_temp_max) | is.na(tide))
+
+# frailty model
+# cox_frailty2 <- coxme(Surv(tstart, tstop, event) ~ position + tide + avg_DO_min + avg_temp_max +
+#                          (1 | bag), data = survival_long_z)
+# summary(cox_frailty2)
+# 
+# names(fixef(DO_mod))
+
+#Extracting coefficients
+a_DO_density           <- fixef(DO_mod)[["density"]]
+a_DO_tide               <- fixef(DO_mod)[["tide"]]
+a_temp_position_bottom  <- fixef(temp_mod)[["positiondense_bottom"]]
+a_temp_position_top     <- fixef(temp_mod)[["positiondense_top"]]
+a_temp_tide              <- fixef(temp_mod)[["tide"]]
+
+b_DO     <- coef(cox_path)["avg_DO_min"]
+b_temp   <- coef(cox_path)["avg_temp_max"]
+# c_direct_bottom <- coef(cox_path)["positiondense_bottom"]
+# c_direct_top    <- coef(cox_path)["positiondense_top"]
+# d_tide_direct   <- coef(cox_path)["tide"]
+
+# Getting total effects
+indirect_bottom_via_temp <- a_temp_position_bottom * b_temp
+indirect_top_via_temp    <- a_temp_position_top * b_temp
+indirect_via_DO          <- a_DO_density * b_DO   # same for both layers -- DO isn't layer-resolved
+
+# Total effect 
+total_bottom_effect <- indirect_bottom_via_temp + indirect_via_DO
+total_top_effect    <- indirect_top_via_temp + indirect_via_DO
+total_tide_effect   <- (a_DO_tide * b_DO) + (a_temp_tide * b_temp)
+
+# Data frame with effects
+tibble(
+  path = c( "dense_bottom -> temp -> mortality ",
+           "density -> DO -> mortality (shared across layers)", "TOTAL dense_bottom effect",
+            "dense_top -> temp -> mortality",
+           "TOTAL dense_top effect",
+            "tide -> DO -> mortality", "tide -> temp -> mortality",
+           "TOTAL tide effect"),
+  coefficient = c(indirect_bottom_via_temp, indirect_via_DO,
+                  total_bottom_effect, indirect_top_via_temp,
+                  total_top_effect,
+                  a_DO_tide * b_DO, a_temp_tide * b_temp,
+                  total_tide_effect)
+)
+
+
+ph_check <- cox.zph(cox_path )
+print(ph_check)
+plot(ph_check)   
+
+#
+
+```
+
+
+#Bootstrapping CI's
+```{r}
+## Bootstrap CIs on each indirect/total effect using the same
+## bag-resampling approach as the STEP 3 mediation section above --
+## product-of-coefficients terms are not normally distributed, so
+## don't rely on Wald SEs from the individual models for these.
+
+library(boot)
+
+unique_bags <- unique(survival_long_z$bag)   # resample at the PHYSICAL bag level
+
+boot_coefs <- function(all_bags, indices) {
+  sampled_bags <- all_bags[indices]
+
+  # rebuild the dataset, allowing bags to repeat if drawn more than once
+  d_surv <- map_dfr(seq_along(sampled_bags), function(i) {
+    survival_long_z %>%
+      filter(bag == sampled_bags[i]) %>%
+      mutate(bag = paste0(bag, "_rep", i))   # relabel so repeated bags aren't treated as one cluster
+  })
+
+  fit <- tryCatch(
+    coxph(Surv(tstart, tstop, event) ~ avg_DO_min + avg_temp_max +
+            cluster(bag), data = d_surv),
+    error = function(e) NULL
+  )
+
+  if (is.null(fit)) return(rep(NA, 4))
+
+  coef(fit)[c("avg_DO_min", "avg_temp_max")]
+  # add "avg_temp_max" too if you want all five in one call -- boot() output
+  # index order will follow whatever order you list here
+}
+
+set.seed(123)
+boot_out <- boot(data = unique_bags, statistic = boot_coefs, R = 2000)
+
+# check how many resamples actually succeeded
+sum(!is.na(boot_out$t[,1]))
+
+# CIs for each coefficient (index order matches the c(...)/[...] above)
+boot.ci(boot_out, type = "perc", index = 1)   # positiondense_bottom
+boot.ci(boot_out, type = "perc", index = 2)   # positiondense_top
+boot.ci(boot_out, type = "perc", index = 3)   # tide
+boot.ci(boot_out, type = "perc", index = 4)   # avg_DO_min
+
+# tidy summary of all bootstrapped estimates vs. original model
+data.frame(
+  term = c("avg_DO_min", "avg_temp_max"),
+  original_coef = coef(cox_path)[c("avg_DO_min", "avg_temp_max")],
+  boot_mean = colMeans(boot_out$t, na.rm = TRUE),
+  boot_se   = apply(boot_out$t, 2, sd, na.rm = TRUE)
+)
 
 
 
 
-
-
+```
 

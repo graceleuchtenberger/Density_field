@@ -19,13 +19,13 @@ library(gridExtra)
 ```{r}
 
 
-files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/04192026")
+files <- list.files(path = "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/06132026")
 
 robo<- data.frame()
 
 for (file in files){
   name <- gsub(".csv","", file)
-  robo_file <- read_csv(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/04192026/",file, sep = ""))
+  robo_file <- read_csv(paste("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/06132026/",file, sep = ""))
   robo_file <- robo_file[-c(1:21), ]
   robo_file$sensor <- name
   robo <- rbind(robo, robo_file)
@@ -51,7 +51,7 @@ robo$datetime <- as.POSIXct(robo$datetime, format = "%Y-%m-%d %H:%M", tz = "Amer
 
 robo$datetime <- robo$datetime - hours(8)
 
-write.csv(robo, "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/04192026/robo_comb.csv")
+write.csv(robo, "/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/06132026/robo_comb.csv")
 
 ```
 
@@ -188,9 +188,10 @@ robo2 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple
 robo3 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/12022025/robo_comb.csv")
 robo4 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/01162026/robo_comb.csv")
 robo5 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/04192026/robo_comb.csv")
+robo6 <- read.csv("/Users/graceleuchtenberger/Library/Mobile Documents/com~apple~CloudDocs/Documents/Density_field/data/Robo/06132026/robo_comb.csv")
 
 
-interp <- bind_rows(interp1, interp2, interp3, robo1, robo2, robo3, robo4, robo5)
+interp <- bind_rows(interp1, interp2, interp3, robo1, robo2, robo3, robo4, robo5, robo6)
 
 interp$datetime <- as.POSIXct(interp$datetime, format = "%Y-%m-%d %H:%M:%S",  tz = "America/Los_Angeles")
 
