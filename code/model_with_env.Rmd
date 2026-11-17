@@ -7,7 +7,9 @@ date: "2026-08-14"
 # Load libraries
 ```{r}
 library(pacman)
-pacman::p_load(ggplot2, tidyverse, readxl, glmmTMB, DHARMa, here,nimble, nimbleExtra,survival, purrr, tibble, lmerTest, coxme)
+pacman::p_load(ggplot2, tidyverse, readxl, glmmTMB, DHARMa, here,nimble, nimbleExtra,survival, purrr, tibble, lmerTest, coxme, lavaan, lme4, piecewiseSEM,multcomp, multcompView)
+
+
 
 ```
 
@@ -27,8 +29,8 @@ dates <- as.Date(dates)
 
 # need to filter so that low tide ones stay when immersed, high tides stay when immersed
 do_current_2 <- do_current %>%
-  filter((tide.x== "H" & up_Immersed == "Y")| (tide.x== "L" & low_Immersed == "Y")) %>%
-  group_by(as.Date(datetime), bag.x) %>%
+  filter((tide== "H" & up_Immersed == "Y")| (tide== "L" & low_Immersed == "Y")) %>%
+  group_by(as.Date(datetime), bag) %>%
   mutate(daily_min = min(DO_adj, na.rm = TRUE),
          date = as.Date(datetime))
 
@@ -36,14 +38,14 @@ do_current_2$interval <- cut(do_current_2$date, breaks = dates, labels = as.char
 
 do_current_3 <- do_current_2%>%
   filter(!is.na(interval)) %>%
-  group_by(bag.x, interval) %>%
+  group_by(bag, interval) %>%
   summarise(avg_DO_min = mean(daily_min))
 
 survival$bag <- substr(survival$bag_num, 1, 2)
 
 do_current_3$interval<- as.Date(do_current_3$interval)
 survival$bag <- as.factor(survival$bag)
-do_current_3$bag <- as.factor(do_current_3$bag.x)
+do_current_3$bag <- as.factor(do_current_3$bag)
 
 survival_2 <- left_join(survival, do_current_3, join_by("date" == "interval", "bag" == "bag"))
 ```
@@ -390,7 +392,7 @@ plot(ph_check)   # look for trends in residuals vs. time -> PH violation
 
 ```
 
-# path analysis 
+# path analysis survival
 ```{r}
 
 # ================================================================
@@ -659,4 +661,165 @@ data.frame(
 
 
 ```
+
+# Growth path
+
+## Load in data
+
+```{r}
+sizes <- read_csv(here("data/Growth/final_sizes.csv"))
+dates <- as.Date(unique(sizes$date))
+
+dates <- c(dates)
+
+dates <- as.Date(dates)
+```
+
+```{r}
+
+# need to filter so that low tide ones stay when immersed, high tides stay when immersed
+do_current_2 <- do_current %>%
+  filter((tide== "H" & up_Immersed == "Y")| (tide== "L" & low_Immersed == "Y")) %>%
+  group_by(as.Date(datetime), bag) %>%
+  mutate(daily_min = min(DO_adj, na.rm = TRUE),
+         date = as.Date(datetime))
+
+do_current_2$interval <- cut(do_current_2$date, breaks = dates, labels = as.character(dates[-1]))
+
+do_current_3 <- do_current_2%>%
+  filter(!is.na(interval)) %>%
+  group_by(bag, interval) %>%
+  summarise(avg_DO_min = mean(daily_min))
+
+sizes$bag <- substr(sizes$bag_num, 1, 2)
+
+do_current_3$interval<- as.Date(do_current_3$interval)
+survival$bag <- as.factor(survival$bag)
+do_current_3$bag <- as.factor(do_current_3$bag)
+
+sizes_2 <- left_join(sizes, do_current_3, join_by("date" == "interval", "bag" == "bag"))
+```
+
+##adding in max temp
+```{r}
+robo_interp_max <- interp %>%
+  group_by(as.Date(datetime), bag, top_bottom) %>%
+  summarize(max_temp = max(temp, na.rm = TRUE),
+            min_temp = min(temp, na.rm = TRUE))
+
+robo_interp_max$date <- robo_interp_max$`as.Date(datetime)`
+
+robo_interp_max$interval <- cut(robo_interp_max$date, breaks = dates, labels = as.character(dates[-1]))
+
+robo_interp_max_2 <- robo_interp_max%>%
+  filter(!is.na(interval)) %>%
+  group_by(bag, top_bottom, interval) %>%
+  summarise(avg_temp_max = mean(max_temp))
+
+
+robo_interp_max_2$interval<- as.Date(robo_interp_max_2$interval)
+
+robo_interp_max_2$bag <- as.factor(robo_interp_max_2$bag)
+
+robo_interp_max_2$top_bottom <- as.factor(robo_interp_max_2$top_bottom)
+
+sizes_2$top_bottom <- as.factor(sizes_2$top_bottom)
+
+
+sizes_2$bag <- substr(sizes_2$bag, 1, 2)
+
+sizes_3 <- left_join(sizes_2, robo_interp_max_2, join_by("date" == "interval", "bag" == "bag", "top_bottom" == "top_bottom"))
+
+
+sizes_3 <- sizes_3%>%
+  filter(date > "2025-06-27")
+
+sizes_3 <- sizes_3 %>%
+  filter(as.Date(date) != as.Date("2026-04-19"))
+
+```
+
+## Bottom v solo
+```{r}
+
+sizes_4 <- sizes_3 %>%
+  group_by(date, bag_num, top_bottom) %>%
+  summarise(
+    mean_l       = mean(length, na.rm = TRUE),
+    n_oysters    = n(),
+    bag          = first(bag),
+    density      = first(density),
+    tide         = first(tide),
+    avg_DO_min   = first(avg_DO_min),
+    avg_temp_max = first(avg_temp_max),
+    .groups = "drop"
+  )
+  
+
+
+hist(sizes_4$avg_DO_min)
+hist(sizes_4$avg_temp_max)
+
+sizes_4$top_bottom <- as.numeric(sizes_4$top_bottom)
+sizes_4 <- sizes_4 %>%
+  mutate(tide_num = recode_values(tide, "L" ~ 4, "H" ~ 5))
+
+sizes_4 <- sizes_4 %>%
+  mutate(density_num = recode_values(density, "D" ~ 300, "S" ~ 150))
+
+
+# Running piecewise on just solo vs bottom bag (capture DO and temp difference)
+sizes_5 <- sizes_4 %>%
+  filter(top_bottom != 3)
+
+
+m_o2 <- glmmTMB(avg_DO_min ~ top_bottom + tide_num + (1|bag) +date, data = sizes_5, family = gaussian())
+summary(m_o2)
+testDispersion(m_o2)
+tst_simres <- simulateResiduals(fittedModel = m_o2) #DHARMa
+plot(tst_simres)
+
+# layer level: 9 layers per tide height
+m_temp <- glmmTMB(avg_temp_max ~ top_bottom + tide_num + (1 | bag), data = sizes_5, family = lognormal())
+summary(m_temp)
+testDispersion(m_temp)
+tst_simres <- simulateResiduals(fittedModel = m_temp) #DHARMa
+plot(tst_simres)
+
+m_size <- glmmTMB(mean_l ~ avg_temp_max + avg_DO_min + top_bottom + tide_num + (1 | bag), data = sizes_5)
+
+mod1 <- psem(m_temp, m_o2, m_size,avg_DO_min %~~% avg_temp_max)
+piecewiseSEM::coefs(mod1)
+install.packages("reticulate")
+remotes::install_version("emmeans", version = "1.11.2")
+summary(mod1)
+
+mod <- psem(m_temp, m_o2, m_size,avg_DO_min %~~% avg_temp_max)
+dSep(mod)
+coefs(mod)
+```
+
+# temp path analysis
+```{r}
+
+sizes_4$top_bottom <- as.factor(sizes_4$top_bottom)
+
+
+
+m_temp <- glmmTMB(avg_temp_max ~ top_bottom + tide_num + (1 | bag), data = sizes_5, family = lognormal())
+summary(m_temp)
+testDispersion(m_temp)
+tst_simres <- simulateResiduals(fittedModel = m_temp) #DHARMa
+plot(tst_simres)
+
+m_size_temp <- glmmTMB(mean_l ~ avg_temp_max + top_bottom + (1 | bag_num), data = sizes_4, family = gaussian())
+summary(m_size_temp)
+
+
+mod <- psem(m_temp, m_size_temp) |> summary()
+dSep(mod)
+coefs(mod)
+
+```
+
 

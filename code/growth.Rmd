@@ -103,6 +103,9 @@ colnames(sizes) <- c("date", "bag_num", "pic_num", "oyster_num", "length")
 sizes <- bind_rows(sizes, Aug, Apr, Jun)
 sizes <- left_join(sizes, treat_key, by = "bag_num")
 sizes$top_bottom <- as.factor(sizes$top_bottom)
+
+
+write_csv(sizes, here("data/Growth/final_sizes.csv"))
 ```
 
 ```{r}
