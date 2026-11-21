@@ -662,7 +662,7 @@ data.frame(
 
 ```
 
-# Growth path
+# Size path
 
 ## Load in data
 
@@ -774,6 +774,10 @@ sizes_5 <- sizes_4 %>%
 
 
 m_o2 <- glmmTMB(avg_DO_min ~ top_bottom + tide_num + (1|bag) +date, data = sizes_5, family = gaussian())
+m_o2 <- update(m_o2,
+                control = glmmTMBControl(optimizer = optim,
+                                         optArgs = list(method = "BFGS")))
+
 summary(m_o2)
 testDispersion(m_o2)
 tst_simres <- simulateResiduals(fittedModel = m_o2) #DHARMa
@@ -820,6 +824,117 @@ mod <- psem(m_temp, m_size_temp) |> summary()
 dSep(mod)
 coefs(mod)
 
+```
+
+
+# Making growth dataset
+```{r}
+# summer data only
+sizes_g1 <- sizes %>%
+  filter(date <= "2025-08-21")
+
+# get mean lengths from start to end of summer
+sizes_g1 <- sizes_g1 %>%
+  group_by(date, bag_num, density, tide, piling, rack, top_bottom, bag) %>%
+  summarise(mean_l = mean(length))
+
+#pivot wider to subtract mean lengths from each other
+sizes_g1w <- sizes_g1 %>%
+  pivot_wider(names_from = date,
+              values_from = mean_l)
+
+#get mean growth per bag at each interval
+sizes_g1w$i1 <- sizes_g1w$`2025-07-23`-sizes_g1w$`2025-06-27`
+
+sizes_g1w$i2 <- sizes_g1w$`2025-08-21`-sizes_g1w$`2025-07-23`
+
+#pivot back to longer
+sizes_gl <- sizes_g1w %>%
+  pivot_longer(cols = i1:i2, names_to = "interval", values_to = "growth_mm")
+
+# take out raw mean length
+sizes_gl <- sizes_gl[,-(8:10)]
+
+# put date column back in
+sizes_gl$date <- ifelse(sizes_gl$interval == "i1", as.Date("2025-07-23"), as.Date("2025-08-21"))
+
+sizes_gl$date<- as.POSIXct.Date(sizes_gl$date)
+
+sizes_gl2 <- sizes_gl%>%
+  left_join(sizes_5 %>% dplyr::select(date, avg_temp_max, avg_DO_min, density_num, tide_num, bag_num), join_by(date, bag_num))
+
+sizes_gl2 <- sizes_gl2 %>%
+  filter(top_bottom != 2)
+
+```
+
+
+#Growth path
+
+```{r}
+
+sizes_gl2$top_bottom <- as.numeric(sizes_gl2$top_bottom)
+
+# temperature
+m_temp <- glmmTMB(avg_temp_max ~ top_bottom + tide_num + interval + (1 | bag_num), data = sizes_gl2)
+summary(m_temp)
+testDispersion(m_temp)
+tst_simres <- simulateResiduals(fittedModel = m_temp) #DHARMa
+plot(tst_simres)
+
+# DO
+m_o2   <- glmmTMB(avg_DO_min ~ top_bottom + tide_num + interval + (1 | bag_num), data = sizes_gl2)
+summary(m_o2 )
+testDispersion(m_o2 )
+tst_simres <- simulateResiduals(fittedModel = m_o2 ) #DHARMa
+plot(tst_simres)
+
+
+
+m_size <- glmmTMB(growth_mm ~ avg_temp_max + avg_DO_min + top_bottom + tide_num + interval + (1 | bag_num), data = sizes_gl2)
+
+psem(m_temp, m_o2, m_size) |> summary()
+```
+
+#bootstrap growth path
+```{r}
+set.seed(42)
+
+bag_ids <- unique(sizes_gl2$bag_num)
+by_bag <- split(sizes_gl2, sizes_gl2$bag_num)
+
+boot_fun <- function() {
+  # resample bags with replacement, give each draw a new ID so duplicates stay distinct
+  draw <- sample(bag_ids, length(bag_ids), replace = TRUE)
+  d <- bind_rows(lapply(seq_along(draw), function(i) {
+    x <- by_bag[[as.character(draw[i])]]
+    x$bag_boot <- i
+    x
+  }))
+  m_temp <- lm(avg_temp_max ~ top_bottom + tide_num + interval, data = d)
+  m_o2   <- lm(avg_DO_min ~ top_bottom + tide_num + interval, data = d)
+  m_size <- lm(growth_mm ~ avg_temp_max + avg_DO_min + top_bottom + tide_num + interval, data = d)
+
+  a_t  <- coef(m_temp)["top_bottom"]            # stacked -> temp
+  a_o  <- coef(m_o2)["top_bottom"]              # stacked -> DO
+  b_t  <- coef(m_size)["avg_temp_max"]       # temp -> growth
+  b_o  <- coef(m_size)["avg_DO_min"]         # DO -> growth
+  direct <- coef(m_size)["top_bottom"]
+
+  via_temp    <- a_t * b_t
+  via_DO      <- a_o * b_o
+  indirect    <- via_temp + via_DO 
+
+  c(via_temp = via_temp, via_DO = via_DO, 
+    indirect = indirect, direct = direct, total = indirect + direct)
+}
+
+boots <- t(replicate(2000, tryCatch(boot_fun(), error = function(e) rep(NA, 5))))
+colnames(boots) <- c("via_temp","via_DO","indirect","direct","total")
+
+# point estimates and 95% percentile CIs
+apply(boots, 2, quantile, probs = c(0.025, 0.5, 0.975), na.rm = TRUE)
+sum(is.na(boots[,1]))   # how many resamples failed
 ```
 
 
